@@ -1,0 +1,18 @@
+.app {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  font-family: system-ui, sans-serif;
+}
+
+.editor-wrapper {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 300px;
+}
+
+.editor-wrapper .tiptap {
+  outline: none;
+  min-height: 260px;
+}
