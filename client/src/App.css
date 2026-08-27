@@ -5,6 +5,43 @@
   font-family: system-ui, sans-serif;
 }
 
+.doc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.doc-id {
+  margin-right: auto;
+  color: #444;
+}
+
+.doc-bar button {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
+.doc-bar button:hover {
+  background: #eee;
+}
+
+.join-form {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.join-form input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
 .editor-wrapper {
   border: 1px solid #ccc;
   border-radius: 8px;

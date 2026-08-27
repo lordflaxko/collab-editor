@@ -6,7 +6,6 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { useEffect, useMemo, useState } from 'react'
 
-const ROOM_NAME = 'collab-editor-room'
 const USER_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6']
 
 function randomUser() {
@@ -16,11 +15,11 @@ function randomUser() {
   }
 }
 
-function Editor() {
+function Editor({ room }: { room: string }) {
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', ROOM_NAME, ydoc),
-    [ydoc],
+    () => new WebsocketProvider('ws://localhost:1234', room, ydoc),
+    [room, ydoc],
   )
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
 
