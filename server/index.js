@@ -1,5 +1,11 @@
+const path = require('path')
 const http = require('http')
 const { WebSocketServer } = require('ws')
+
+// y-websocket/bin/utils reads YPERSISTENCE at require-time, so it must be
+// set before the require() call below.
+process.env.YPERSISTENCE = process.env.YPERSISTENCE || path.join(__dirname, 'data')
+
 const { setupWSConnection } = require('y-websocket/bin/utils')
 
 const port = process.env.PORT || 1234
