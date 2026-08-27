@@ -11,6 +11,10 @@ function roomFromPath(pathname: string) {
   return id.length > 0 ? id : null
 }
 
+function rememberedPassphrase(room: string) {
+  return sessionStorage.getItem(`passphrase:${room}`)
+}
+
 function App() {
   const [room, setRoom] = useState(() => {
     const fromPath = roomFromPath(window.location.pathname)
@@ -20,6 +24,9 @@ function App() {
     return id
   })
   const [joinInput, setJoinInput] = useState('')
+  const [passphrase, setPassphrase] = useState<string | null>(() => rememberedPassphrase(room))
+  const [passphraseInput, setPassphraseInput] = useState('')
+  const [authError, setAuthError] = useState(false)
 
   useEffect(() => {
     const onPopState = () => {
@@ -29,6 +36,13 @@ function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  // Reset the unlock gate whenever we land on a different document.
+  useEffect(() => {
+    setPassphrase(rememberedPassphrase(room))
+    setPassphraseInput('')
+    setAuthError(false)
+  }, [room])
 
   function newDocument() {
     const id = generateRoomId()
@@ -43,6 +57,24 @@ function App() {
     window.history.pushState(null, '', `/${id}`)
     setRoom(id)
     setJoinInput('')
+  }
+
+  function unlock(e: FormEvent) {
+    e.preventDefault()
+    setAuthError(false)
+    setPassphrase(passphraseInput)
+  }
+
+  function handleAuthError() {
+    sessionStorage.removeItem(`passphrase:${room}`)
+    setPassphrase(null)
+    setAuthError(true)
+  }
+
+  function handleConnected() {
+    if (passphrase !== null) {
+      sessionStorage.setItem(`passphrase:${room}`, passphrase)
+    }
   }
 
   return (
@@ -67,7 +99,33 @@ function App() {
           <button type="submit">Open</button>
         </form>
       </div>
-      <Editor key={room} room={room} />
+      {passphrase === null ? (
+        <form className="unlock-gate" onSubmit={unlock}>
+          <p>
+            Enter this document's passphrase to continue. If it doesn't have one yet, leave this
+            blank or set one now — whatever you enter first becomes its passphrase.
+          </p>
+          {authError && <p className="error">Incorrect passphrase.</p>}
+          <div className="unlock-row">
+            <input
+              type="password"
+              value={passphraseInput}
+              onChange={(e) => setPassphraseInput(e.target.value)}
+              placeholder="Passphrase (optional)"
+              autoFocus
+            />
+            <button type="submit">Continue</button>
+          </div>
+        </form>
+      ) : (
+        <Editor
+          key={`${room}:${passphrase}`}
+          room={room}
+          passphrase={passphrase}
+          onAuthError={handleAuthError}
+          onConnected={handleConnected}
+        />
+      )}
     </div>
   )
 }

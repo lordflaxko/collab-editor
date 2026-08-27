@@ -4,14 +4,16 @@ function uniqueRoom(label: string) {
   return `test-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-async function openRoom(page: Page, room: string) {
+async function openRoom(page: Page, room: string, passphrase = '') {
   await page.goto(`/${room}`)
+  await page.getByPlaceholder('Passphrase (optional)').fill(passphrase)
+  await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('Sync: connected')).toBeVisible()
 }
 
 test('fresh visit with no path auto-generates a room id in the URL', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Sync: connected')).toBeVisible()
+  await expect(page.getByPlaceholder('Passphrase (optional)')).toBeVisible()
   expect(new URL(page.url()).pathname).not.toBe('/')
 })
 
@@ -74,11 +76,39 @@ test('reopening the same document id in a new tab restores its content', async (
 test('the doc bar lets you jump to another document by id', async ({ page }) => {
   const room = uniqueRoom('jump')
   await page.goto('/')
-  await expect(page.getByText('Sync: connected')).toBeVisible()
 
   await page.getByPlaceholder('Open document id…').fill(room)
   await page.getByRole('button', { name: 'Open' }).click()
 
   await expect(page.locator('.doc-id code')).toHaveText(room)
   expect(new URL(page.url()).pathname).toBe(`/${room}`)
+})
+
+test('a passphrase set at creation is required to reopen the document elsewhere', async ({
+  browser,
+}) => {
+  const room = uniqueRoom('secure')
+  const context1 = await browser.newContext()
+  const page1 = await context1.newPage()
+  await openRoom(page1, room, 'correct-horse')
+  await page1.locator('.tiptap').click()
+  await page1.keyboard.type('Secret content')
+  await page1.waitForTimeout(500)
+  await context1.close()
+
+  // Wrong passphrase from a fresh browser context (no remembered session) is rejected.
+  const context2 = await browser.newContext()
+  const page2 = await context2.newPage()
+  await page2.goto(`/${room}`)
+  await page2.getByPlaceholder('Passphrase (optional)').fill('wrong-guess')
+  await page2.getByRole('button', { name: 'Continue' }).click()
+  await expect(page2.getByText('Incorrect passphrase.')).toBeVisible()
+  await context2.close()
+
+  // Correct passphrase connects and shows the saved content.
+  const context3 = await browser.newContext()
+  const page3 = await context3.newPage()
+  await openRoom(page3, room, 'correct-horse')
+  await expect(page3.getByText('Secret content')).toBeVisible()
+  await context3.close()
 })

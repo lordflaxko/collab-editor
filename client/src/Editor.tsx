@@ -15,24 +15,43 @@ function randomUser() {
   }
 }
 
-function Editor({ room }: { room: string }) {
+interface EditorProps {
+  room: string
+  passphrase: string
+  onAuthError: () => void
+  onConnected: () => void
+}
+
+const INVALID_PASSPHRASE_CODE = 4001
+
+function Editor({ room, passphrase, onAuthError, onConnected }: EditorProps) {
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', room, ydoc),
-    [room, ydoc],
+    () => new WebsocketProvider('ws://localhost:1234', room, ydoc, { params: { passphrase } }),
+    [room, ydoc, passphrase],
   )
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
 
   useEffect(() => {
-    const onStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
+    const onStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
       setStatus(status)
+      if (status === 'connected') onConnected()
+    }
+    const onClose = (event: CloseEvent) => {
+      if (event.code === INVALID_PASSPHRASE_CODE) {
+        provider.disconnect()
+        onAuthError()
+      }
+    }
     provider.on('status', onStatus)
+    provider.on('connection-close', onClose)
     provider.connect()
     return () => {
       provider.off('status', onStatus)
+      provider.off('connection-close', onClose)
       provider.disconnect()
     }
-  }, [provider])
+  }, [provider, onAuthError, onConnected])
 
   const editor = useEditor({
     extensions: [

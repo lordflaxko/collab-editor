@@ -42,6 +42,43 @@
   border-radius: 6px;
 }
 
+.unlock-gate {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.unlock-gate p {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.unlock-gate .error {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.unlock-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.unlock-row input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.unlock-row button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
 .editor-wrapper {
   border: 1px solid #ccc;
   border-radius: 8px;
