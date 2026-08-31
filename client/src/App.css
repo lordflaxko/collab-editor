@@ -613,6 +613,11 @@
   overflow: hidden;
 }
 
+.chat-panel-header > div {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .chat-panel-header {
   display: flex;
   justify-content: space-between;
@@ -1096,4 +1101,157 @@
 
 .sc-pr-form .comment-textarea {
   min-height: 50px;
+}
+
+/* Roles */
+
+.role-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+  color: var(--text);
+}
+
+.btn-danger {
+  border-color: #e0554f;
+  color: #e0554f;
+}
+
+.btn-danger:hover {
+  background: rgba(224, 85, 79, 0.1);
+}
+
+/* Dashboard */
+
+.dashboard {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.dashboard-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-column h2,
+.dashboard-column h3 {
+  margin: 0 0 0.6rem;
+}
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.project-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.project-list-item:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.project-name {
+  font-weight: 600;
+  color: var(--text-h);
+  flex: 1;
+}
+
+.dashboard-form {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--bg);
+}
+
+.dashboard-form select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+/* Members panel */
+
+.members-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.members-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.member-item select {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.invite-section,
+.visibility-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.invite-section select {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.invite-section .text-input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.members-panel > .btn-danger {
+  margin: 0.75rem;
 }

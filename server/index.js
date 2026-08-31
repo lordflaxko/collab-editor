@@ -7,11 +7,12 @@ const { WebSocketServer } = require('ws')
 process.env.YPERSISTENCE = process.env.YPERSISTENCE || path.join(__dirname, 'data')
 
 const { setupWSConnection } = require('y-websocket/bin/utils')
-const { authorize } = require('./auth')
+const { restrictToReadOnly } = require('./readOnlyGuard')
 const { handleRunConnection } = require('./runWs')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
 const notifications = require('./notifications')
+const projects = require('./projects')
 const git = require('./git')
 const githubApi = require('./githubApi')
 
@@ -124,6 +125,151 @@ const server = http.createServer(async (req, res) => {
     notifications.markAllRead(username)
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true }))
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/create') {
+    try {
+      const { token, name, visibility } = await readJsonBody(req)
+      const project = projects.createProject(token, name, visibility)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/mine') {
+    try {
+      const { token } = await readJsonBody(req)
+      const list = projects.myProjects(token)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ projects: list }))
+    } catch (err) {
+      res.writeHead(401, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/get') {
+    try {
+      const { token, projectId } = await readJsonBody(req)
+      const { project, role } = projects.getProjectForRequester(token, projectId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project, role }))
+    } catch (err) {
+      res.writeHead(err.message === 'Project not found' ? 404 : 403, {
+        'Content-Type': 'application/json',
+      })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/invite-link') {
+    try {
+      const { token, projectId, role } = await readJsonBody(req)
+      const inviteToken = projects.createInviteLink(token, projectId, role)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ inviteToken }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/join') {
+    try {
+      const { token, inviteToken } = await readJsonBody(req)
+      const project = projects.joinViaInvite(token, inviteToken)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/members') {
+    try {
+      const { token, projectId } = await readJsonBody(req)
+      const members = projects.listMembers(token, projectId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ members }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/member/role') {
+    try {
+      const { token, projectId, targetUsername, role } = await readJsonBody(req)
+      const project = projects.changeRole(token, projectId, targetUsername, role)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/member/remove') {
+    try {
+      const { token, projectId, targetUsername } = await readJsonBody(req)
+      const project = projects.removeMember(token, projectId, targetUsername)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/visibility') {
+    try {
+      const { token, projectId, visibility } = await readJsonBody(req)
+      const project = projects.setVisibility(token, projectId, visibility)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/delete') {
+    try {
+      const { token, projectId } = await readJsonBody(req)
+      projects.deleteProject(token, projectId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/projects/transfer') {
+    try {
+      const { token, projectId, newOwnerUsername } = await readJsonBody(req)
+      const project = projects.transferOwnership(token, projectId, newOwnerUsername)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
     return
   }
 
@@ -298,11 +444,23 @@ wss.on('connection', (ws, req) => {
   }
 
   const docName = url.pathname.slice(1)
-  const passphrase = url.searchParams.get('passphrase') ?? ''
+  const token = url.searchParams.get('token') ?? ''
+  const username = accounts.getSessionUser(token)
 
-  if (!authorize(docName, passphrase)) {
-    ws.close(4001, 'invalid-passphrase')
+  const project = projects.getProject(docName)
+  if (!project) {
+    ws.close(4004, 'project-not-found')
     return
+  }
+
+  const role = projects.roleFor(project, username)
+  if (!role) {
+    ws.close(4003, 'forbidden')
+    return
+  }
+
+  if (role === 'viewer') {
+    restrictToReadOnly(ws)
   }
 
   setupWSConnection(ws, req, { docName })

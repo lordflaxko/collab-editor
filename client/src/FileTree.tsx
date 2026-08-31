@@ -4,13 +4,14 @@ import type { FileMeta } from './useFileTree'
 interface FileTreeProps {
   files: FileMeta[]
   activeId: string | null
+  readOnly: boolean
   onSelect: (id: string) => void
   onCreate: (name: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
 }
 
-function FileTree({ files, activeId, onSelect, onCreate, onRename, onDelete }: FileTreeProps) {
+function FileTree({ files, activeId, readOnly, onSelect, onCreate, onRename, onDelete }: FileTreeProps) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -41,11 +42,13 @@ function FileTree({ files, activeId, onSelect, onCreate, onRename, onDelete }: F
     <div className="file-tree">
       <div className="file-tree-header">
         <span>Files</span>
-        <button type="button" className="btn btn-small" onClick={() => setCreating(true)}>
-          + New
-        </button>
+        {!readOnly && (
+          <button type="button" className="btn btn-small" onClick={() => setCreating(true)}>
+            + New
+          </button>
+        )}
       </div>
-      {creating && (
+      {!readOnly && creating && (
         <form className="file-tree-new" onSubmit={submitCreate}>
           <input
             className="text-input"
@@ -76,22 +79,24 @@ function FileTree({ files, activeId, onSelect, onCreate, onRename, onDelete }: F
                   type="button"
                   className="file-tree-item"
                   onClick={() => onSelect(file.id)}
-                  onDoubleClick={() => startRename(file)}
-                  title="Double-click to rename"
+                  onDoubleClick={readOnly ? undefined : () => startRename(file)}
+                  title={readOnly ? undefined : 'Double-click to rename'}
                 >
                   {file.name}
                 </button>
-                <button
-                  type="button"
-                  className="file-tree-delete"
-                  title="Delete file"
-                  onClick={() => {
-                    if (files.length <= 1) return
-                    if (window.confirm(`Delete ${file.name}?`)) onDelete(file.id)
-                  }}
-                >
-                  ×
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="file-tree-delete"
+                    title="Delete file"
+                    onClick={() => {
+                      if (files.length <= 1) return
+                      if (window.confirm(`Delete ${file.name}?`)) onDelete(file.id)
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
               </>
             )}
           </li>

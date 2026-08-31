@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
-import Workspace from './Workspace'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import ProjectView from './ProjectView'
+import Dashboard from './Dashboard'
+import JoinInvite from './JoinInvite'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
 import { useAccount } from './account'
@@ -9,37 +11,24 @@ import './App.css'
 
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' } as const
 
-function generateRoomId() {
-  return crypto.randomUUID().slice(0, 8)
-}
+type Route = { type: 'dashboard' } | { type: 'join'; inviteToken: string } | { type: 'project'; id: string }
 
-function roomFromPath(pathname: string) {
-  const id = pathname.slice(1).trim()
-  return id.length > 0 ? id : null
-}
-
-function rememberedPassphrase(room: string) {
-  return sessionStorage.getItem(`passphrase:${room}`)
+function parseRoute(pathname: string): Route {
+  const trimmed = pathname.slice(1)
+  if (trimmed === '') return { type: 'dashboard' }
+  if (trimmed.startsWith('join/')) return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
+  return { type: 'project', id: trimmed }
 }
 
 function App() {
-  const [room, setRoom] = useState(() => {
-    const fromPath = roomFromPath(window.location.pathname)
-    if (fromPath) return fromPath
-    const id = generateRoomId()
-    window.history.replaceState(null, '', `/${id}`)
-    return id
-  })
-  const [joinInput, setJoinInput] = useState('')
-  const [passphrase, setPassphrase] = useState<string | null>(() => rememberedPassphrase(room))
-  const [passphraseInput, setPassphraseInput] = useState('')
-  const [authError, setAuthError] = useState(false)
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname))
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
   const { preference: themePreference, isDark, cyclePreference } = useTheme()
   const {
     username: accountUsername,
     token: accountToken,
+    checking: accountChecking,
     error: accountError,
     signup: accountSignup,
     login: accountLogin,
@@ -56,55 +45,23 @@ function App() {
   }
 
   useEffect(() => {
-    const onPopState = () => {
-      const fromPath = roomFromPath(window.location.pathname)
-      if (fromPath) setRoom(fromPath)
-    }
+    const onPopState = () => setRoute(parseRoute(window.location.pathname))
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  // Reset the unlock gate whenever we land on a different document.
-  useEffect(() => {
-    setPassphrase(rememberedPassphrase(room))
-    setPassphraseInput('')
-    setAuthError(false)
-  }, [room])
+  // Passed down through ProjectView into Workspace, whose connection effect
+  // depends on this reference -- an unstable one would tear down and
+  // reconnect the WebSocket on every unrelated App re-render, not just on
+  // real navigation.
+  const navigate = useCallback((path: string) => {
+    window.history.pushState(null, '', path)
+    setRoute(parseRoute(path))
+  }, [])
 
-  function openRoom(id: string) {
-    window.history.pushState(null, '', `/${id}`)
-    setRoom(id)
-  }
+  const goToDashboard = useCallback(() => navigate('/'), [navigate])
 
-  function newDocument() {
-    openRoom(generateRoomId())
-  }
-
-  function openDocument(e: FormEvent) {
-    e.preventDefault()
-    const id = joinInput.trim()
-    if (!id) return
-    openRoom(id)
-    setJoinInput('')
-  }
-
-  function unlock(e: FormEvent) {
-    e.preventDefault()
-    setAuthError(false)
-    setPassphrase(passphraseInput)
-  }
-
-  function handleAuthError() {
-    sessionStorage.removeItem(`passphrase:${room}`)
-    setPassphrase(null)
-    setAuthError(true)
-  }
-
-  function handleConnected() {
-    if (passphrase !== null) {
-      sessionStorage.setItem(`passphrase:${room}`, passphrase)
-    }
-  }
+  const openProject = useCallback((id: string) => navigate(`/${id}`), [navigate])
 
   return (
     <div className="app">
@@ -112,9 +69,6 @@ function App() {
         <h1>Collab Editor</h1>
       </div>
       <div className="doc-bar">
-        <span className="doc-id">
-          Document: <code>{room}</code>
-        </span>
         <input
           className="text-input"
           value={accountUsername ?? displayName}
@@ -132,16 +86,9 @@ function App() {
           onLogin={accountLogin}
           onLogout={accountLogout}
         />
-        <NotificationBell token={accountToken} onOpenRoom={openRoom} />
-        <button
-          type="button"
-          className="btn"
-          onClick={() => navigator.clipboard.writeText(window.location.href)}
-        >
-          Copy link
-        </button>
-        <button type="button" className="btn" onClick={newDocument}>
-          New document
+        <NotificationBell token={accountToken} onOpenRoom={openProject} />
+        <button type="button" className="btn" onClick={goToDashboard}>
+          Dashboard
         </button>
         <button
           type="button"
@@ -151,48 +98,27 @@ function App() {
         >
           Theme: {THEME_LABEL[themePreference]}
         </button>
-        <form className="join-form" onSubmit={openDocument}>
-          <input
-            className="text-input"
-            value={joinInput}
-            onChange={(e) => setJoinInput(e.target.value)}
-            placeholder="Open document id…"
-          />
-          <button type="submit" className="btn">
-            Open
-          </button>
-        </form>
       </div>
-      {passphrase === null ? (
-        <form className="unlock-gate" onSubmit={unlock}>
-          <p>
-            Enter this document's passphrase to continue. If it doesn't have one yet, leave this
-            blank or set one now — whatever you enter first becomes its passphrase.
-          </p>
-          {authError && <p className="error">Incorrect passphrase.</p>}
-          <div className="unlock-row">
-            <input
-              className="text-input"
-              type="password"
-              value={passphraseInput}
-              onChange={(e) => setPassphraseInput(e.target.value)}
-              placeholder="Passphrase (optional)"
-              autoFocus
-            />
-            <button type="submit" className="btn">
-              Continue
-            </button>
+
+      {accountChecking ? (
+        <div className="sc-loading">Loading…</div>
+      ) : route.type === 'dashboard' ? (
+        accountUsername && accountToken ? (
+          <Dashboard token={accountToken} username={accountUsername} onOpenProject={openProject} />
+        ) : (
+          <div className="unlock-gate">
+            <p>Sign in above to create or manage your projects.</p>
           </div>
-        </form>
+        )
+      ) : route.type === 'join' ? (
+        <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
       ) : (
-        <Workspace
-          key={`${room}:${passphrase}`}
-          room={room}
-          passphrase={passphrase}
+        <ProjectView
+          projectId={route.id}
+          token={accountToken}
           user={user}
           isDark={isDark}
-          onAuthError={handleAuthError}
-          onConnected={handleConnected}
+          onGoToDashboard={goToDashboard}
         />
       )}
     </div>

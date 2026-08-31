@@ -5,20 +5,44 @@ import { test, expect, type Page } from '@playwright/test'
 // and Python+Black to be available. Everything else only needs the two dev
 // servers Playwright already starts.
 
-function uniqueRoom(label: string) {
-  return `test-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
 function uniqueUsername(label: string) {
   return `${label}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`.slice(0, 20)
 }
 
-async function openRoom(page: Page, room: string, passphrase = '') {
-  await page.goto(`/${room}`)
-  await page.getByPlaceholder('Passphrase (optional)').fill(passphrase)
-  await page.getByRole('button', { name: 'Continue' }).click()
+async function signUp(page: Page, username: string) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Sign up instead' }).click()
+  await page.getByLabel('Account username').fill(username)
+  await page.getByLabel('Account password').fill('correct-horse-battery')
+  await page.getByRole('button', { name: 'Sign up' }).click()
+  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+}
+
+async function logIn(page: Page, username: string) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByLabel('Account username').fill(username)
+  await page.getByLabel('Account password').fill('correct-horse-battery')
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+}
+
+async function createProject(page: Page, name: string, visibility: 'public' | 'private' = 'private') {
+  await page.getByPlaceholder('Project name').fill(name)
+  await page.locator('.dashboard-form select').selectOption(visibility)
+  await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText('Connected', { exact: true })).toBeVisible()
   await page.waitForSelector('.cm-content')
+}
+
+// Signs up a fresh owner and creates a fresh project in one step -- the most
+// common setup below, replacing the old passphrase-era openRoom() helper.
+async function openNewProject(page: Page, label: string, visibility: 'public' | 'private' = 'private') {
+  const username = uniqueUsername(label)
+  await signUp(page, username)
+  await createProject(page, `Project ${label}`, visibility)
+  return username
 }
 
 async function typeCode(page: Page, text: string) {
@@ -26,189 +50,273 @@ async function typeCode(page: Page, text: string) {
   await page.keyboard.type(text)
 }
 
-test('fresh visit with no path auto-generates a room id in the URL', async ({ page }) => {
+// From the owner's already-open project page, generates an invite link for
+// the given role, then has a second (not-yet-signed-in) page sign up and
+// redeem it. Returns the new member's username.
+async function inviteAndJoin(
+  ownerPage: Page,
+  otherPage: Page,
+  otherLabel: string,
+  role: 'editor' | 'admin' | 'viewer' = 'editor',
+) {
+  await ownerPage.getByRole('button', { name: 'Members' }).click()
+  await ownerPage.locator('.invite-section select').selectOption(role)
+  await ownerPage.getByRole('button', { name: 'Generate invite link' }).click()
+  await expect(ownerPage.locator('.invite-section .text-input')).toHaveValue(/join\//, { timeout: 10000 })
+  const link = await ownerPage.locator('.invite-section .text-input').inputValue()
+  await ownerPage.getByRole('button', { name: 'Close' }).click()
+
+  const username = uniqueUsername(otherLabel)
+  await signUp(otherPage, username)
+  await otherPage.goto(new URL(link).pathname)
+  await expect(otherPage.getByText('Connected', { exact: true })).toBeVisible()
+  await otherPage.waitForSelector('.cm-content')
+  return username
+}
+
+test('a logged-out visitor sees a sign-in prompt at the dashboard', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByPlaceholder('Passphrase (optional)')).toBeVisible()
-  expect(new URL(page.url()).pathname).not.toBe('/')
+  await expect(page.getByText('Sign in above to create or manage your projects.')).toBeVisible()
 })
 
-test('two clients in the same document sync typed code', async ({ browser }) => {
-  const room = uniqueRoom('sync')
+test('a project appears in the dashboard list and can be reopened from there', async ({ page }) => {
+  await signUp(page, uniqueUsername('dashlist'))
+  await createProject(page, 'Listed Project', 'private')
+  const projectUrl = page.url()
+
+  await page.getByRole('button', { name: 'Dashboard' }).first().click()
+  await expect(page.getByText('Listed Project')).toBeVisible()
+  await page.getByText('Listed Project').click()
+  await expect(page).toHaveURL(projectUrl)
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible()
+})
+
+test('two clients in the same project sync typed code', async ({ browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, room)
-  await openRoom(pageB, room)
+  await openNewProject(pageA, 'sync')
+  await inviteAndJoin(pageA, pageB, 'syncb', 'editor')
 
   await typeCode(pageA, 'const hello = "from A"')
-
   await expect(pageB.locator('.cm-content')).toContainText('from A')
 
   await contextA.close()
   await contextB.close()
 })
 
-test('two different documents do not share content', async ({ browser }) => {
-  const roomA = uniqueRoom('alpha')
-  const roomB = uniqueRoom('beta')
+test('two different projects do not share content', async ({ browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, roomA)
+  await openNewProject(pageA, 'alpha')
   await typeCode(pageA, 'const alphaOnly = true')
 
-  await openRoom(pageB, roomB)
-  await pageB.waitForTimeout(1000)
+  await openNewProject(pageB, 'beta')
+  await pageB.waitForTimeout(500)
   await expect(pageB.locator('.cm-content')).not.toContainText('alphaOnly')
 
   await contextA.close()
   await contextB.close()
 })
 
-test('reopening the same document id in a new tab restores its content', async ({ browser }) => {
-  const room = uniqueRoom('persist')
+test('reopening the same project restores its content', async ({ browser }) => {
   const context1 = await browser.newContext()
   const page1 = await context1.newPage()
-  await openRoom(page1, room)
+  const username = await openNewProject(page1, 'persist')
   await typeCode(page1, 'const saved = "content"')
   await page1.waitForTimeout(500) // let the update flush to the server
+  const projectUrl = page1.url()
   await context1.close()
 
   const context2 = await browser.newContext()
   const page2 = await context2.newPage()
-  await openRoom(page2, room)
+  await logIn(page2, username)
+  await page2.goto(new URL(projectUrl).pathname)
+  await expect(page2.getByText('Connected', { exact: true })).toBeVisible()
   await expect(page2.locator('.cm-content')).toContainText('saved')
   await context2.close()
 })
 
-test('the doc bar lets you jump to another document by id', async ({ page }) => {
-  const room = uniqueRoom('jump')
-  await page.goto('/')
-
-  await page.getByPlaceholder('Open document id…').fill(room)
-  await page.getByRole('button', { name: 'Open' }).click()
-
-  await expect(page.locator('.doc-id code')).toHaveText(room)
-  expect(new URL(page.url()).pathname).toBe(`/${room}`)
-})
-
-test('a passphrase set at creation is required to reopen the document elsewhere', async ({
+test('a private project cannot be opened by a non-member, but an invited editor can open it', async ({
   browser,
 }) => {
-  const room = uniqueRoom('secure')
-  const context1 = await browser.newContext()
-  const page1 = await context1.newPage()
-  await openRoom(page1, room, 'correct-horse')
-  await typeCode(page1, 'const secret = "content"')
-  await page1.waitForTimeout(500)
-  await context1.close()
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'secure', 'private')
+  await typeCode(ownerPage, 'const secret = "content"')
+  await ownerPage.waitForTimeout(500)
+  const projectUrl = ownerPage.url()
 
-  // Wrong passphrase from a fresh browser context (no remembered session) is rejected.
-  const context2 = await browser.newContext()
-  const page2 = await context2.newPage()
-  await page2.goto(`/${room}`)
-  await page2.getByPlaceholder('Passphrase (optional)').fill('wrong-guess')
-  await page2.getByRole('button', { name: 'Continue' }).click()
-  await expect(page2.getByText('Incorrect passphrase.')).toBeVisible()
-  await context2.close()
+  const strangerCtx = await browser.newContext()
+  const strangerPage = await strangerCtx.newPage()
+  await signUp(strangerPage, uniqueUsername('stranger'))
+  await strangerPage.goto(new URL(projectUrl).pathname)
+  await expect(strangerPage.getByText('You do not have access to this project')).toBeVisible()
 
-  // Correct passphrase connects and shows the saved content.
-  const context3 = await browser.newContext()
-  const page3 = await context3.newPage()
-  await openRoom(page3, room, 'correct-horse')
-  await expect(page3.locator('.cm-content')).toContainText('secret')
-  await context3.close()
+  const editorCtx = await browser.newContext()
+  const editorPage = await editorCtx.newPage()
+  await inviteAndJoin(ownerPage, editorPage, 'secureeditor', 'editor')
+  await expect(editorPage.locator('.cm-content')).toContainText('secret')
+
+  await ownerCtx.close()
+  await strangerCtx.close()
+  await editorCtx.close()
 })
 
-test('setting your name shows up in the other client\'s presence list', async ({ browser }) => {
-  const room = uniqueRoom('presence')
-  const contextA = await browser.newContext()
-  const contextB = await browser.newContext()
-  const pageA = await contextA.newPage()
-  const pageB = await contextB.newPage()
+test('a public project can be viewed by an anonymous visitor without logging in', async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'publicproj', 'public')
+  await typeCode(ownerPage, 'console.log("public content")')
+  await ownerPage.waitForTimeout(500)
+  const projectUrl = ownerPage.url()
 
-  await pageA.goto(`/${room}`)
-  await pageA.getByLabel('Your name').fill('Alice')
-  await pageA.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageA.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageA.getByText('Connected', { exact: true })).toBeVisible()
+  const anonCtx = await browser.newContext()
+  const anonPage = await anonCtx.newPage()
+  await anonPage.goto(new URL(projectUrl).pathname)
+  await expect(anonPage.getByText('Connected', { exact: true })).toBeVisible()
+  await expect(anonPage.locator('.role-badge')).toContainText('viewer')
+  await expect(anonPage.locator('.cm-content')).toContainText('public content')
 
-  await openRoom(pageB, room)
-
-  await expect(pageB.locator('.presence-chip', { hasText: 'Alice' })).toBeVisible()
-
-  await contextA.close()
-  await contextB.close()
+  await ownerCtx.close()
+  await anonCtx.close()
 })
 
-test('a remote client sees the other user\'s live cursor and selection highlight', async ({
-  browser,
-}) => {
-  const room = uniqueRoom('cursor')
-  const contextA = await browser.newContext()
-  const contextB = await browser.newContext()
-  const pageA = await contextA.newPage()
-  const pageB = await contextB.newPage()
+test('a viewer has no edit controls and the server rejects any edit they attempt', async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'viewersec', 'private')
+  await typeCode(ownerPage, 'console.log("owner content")')
+  await ownerPage.waitForTimeout(500)
 
-  await pageA.goto(`/${room}`)
-  await pageA.getByLabel('Your name').fill('Alice')
-  await pageA.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageA.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageA.getByText('Connected', { exact: true })).toBeVisible()
-  await pageA.waitForSelector('.cm-content')
+  const viewerCtx = await browser.newContext()
+  const viewerPage = await viewerCtx.newPage()
+  await inviteAndJoin(ownerPage, viewerPage, 'viewersecviewer', 'viewer')
 
-  await openRoom(pageB, room)
+  await expect(viewerPage.locator('.role-badge')).toContainText('viewer')
+  await expect(viewerPage.locator('.file-tree-header button', { hasText: '+ New' })).toHaveCount(0)
+  await expect(viewerPage.locator('.editor-actions button', { hasText: 'Format' })).toHaveCount(0)
 
-  await typeCode(pageA, 'const hello = "world"')
-  // Select the word "world" on A's side so B should see a selection highlight too.
-  await pageA.keyboard.press('Shift+Home')
+  // The viewer's browser will locally show the keystroke, but it's a purely
+  // local Yjs transaction the server never accepts -- reloading proves it
+  // was rejected at the protocol level, not just hidden by disabled UI.
+  await viewerPage.locator('.cm-content').click()
+  await viewerPage.keyboard.type('SHOULD NOT PERSIST')
+  await viewerPage.waitForTimeout(500)
+  await viewerPage.reload()
+  await expect(viewerPage.getByText('Connected', { exact: true })).toBeVisible()
+  await expect(viewerPage.locator('.cm-content')).not.toContainText('SHOULD NOT PERSIST')
+  await expect(viewerPage.locator('.cm-content')).toContainText('owner content')
 
-  // B should see a remote caret widget carrying Alice's name.
-  await expect(pageB.locator('.cm-ySelectionInfo', { hasText: 'Alice' })).toBeAttached({
+  await ownerCtx.close()
+  await viewerCtx.close()
+})
+
+test("an admin can change a member's role and remove them", async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'roleadmin', 'private')
+
+  const memberCtx = await browser.newContext()
+  const memberPage = await memberCtx.newPage()
+  const memberUsername = await inviteAndJoin(ownerPage, memberPage, 'roleadminmember', 'viewer')
+
+  await ownerPage.getByRole('button', { name: 'Members' }).click()
+  const memberRow = ownerPage.locator('.member-item', { hasText: memberUsername })
+  await memberRow.locator('select').selectOption('editor')
+  await expect(memberRow.locator('select')).toHaveValue('editor')
+
+  // The member's own view picks up the promotion on their next connection.
+  await memberPage.reload()
+  await expect(memberPage.getByText('Connected', { exact: true })).toBeVisible()
+  await expect(memberPage.locator('.role-badge')).toContainText('editor')
+
+  // The Members panel is still open from above -- clicking the toggle again
+  // would close it, not reopen it.
+  ownerPage.once('dialog', (dialog) => dialog.accept())
+  await ownerPage
+    .locator('.member-item', { hasText: memberUsername })
+    .getByRole('button', { name: 'Remove' })
+    .click()
+  await expect(ownerPage.locator('.member-item', { hasText: memberUsername })).toHaveCount(0)
+
+  await ownerCtx.close()
+  await memberCtx.close()
+})
+
+test('the owner can delete a project', async ({ page }) => {
+  await openNewProject(page, 'deleteme', 'private')
+  await page.getByRole('button', { name: 'Members' }).click()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Delete project' }).click()
+  await expect(page.getByText('No projects yet')).toBeVisible({ timeout: 10000 })
+})
+
+test("setting your name shows up in another client's presence list", async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'presence', 'public')
+  const projectUrl = ownerPage.url()
+
+  const anonCtx = await browser.newContext()
+  const anonPage = await anonCtx.newPage()
+  await anonPage.goto(new URL(projectUrl).pathname)
+  await anonPage.getByLabel('Your name').fill('Alice')
+  await expect(anonPage.getByText('Connected', { exact: true })).toBeVisible()
+
+  await expect(ownerPage.locator('.presence-chip', { hasText: 'Alice' })).toBeVisible()
+
+  await ownerCtx.close()
+  await anonCtx.close()
+})
+
+test("a remote client sees the other user's live cursor and selection highlight", async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'cursorowner', 'private')
+
+  const editorCtx = await browser.newContext()
+  const editorPage = await editorCtx.newPage()
+  const editorUsername = await inviteAndJoin(ownerPage, editorPage, 'cursor', 'editor')
+
+  await typeCode(editorPage, 'const hello = "world"')
+  await editorPage.keyboard.press('Shift+Home')
+
+  await expect(ownerPage.locator('.cm-ySelectionInfo', { hasText: editorUsername })).toBeAttached({
     timeout: 10000,
   })
-  // ...and a selection-highlight decoration for the range Alice selected.
-  await expect(pageB.locator('.cm-ySelection').first()).toBeAttached()
+  await expect(ownerPage.locator('.cm-ySelection').first()).toBeAttached()
 
-  await contextA.close()
-  await contextB.close()
+  await ownerCtx.close()
+  await editorCtx.close()
 })
 
-test('a join/leave notification appears when a peer connects or disconnects', async ({
-  browser,
-}) => {
-  const room = uniqueRoom('joinleave')
-  const contextA = await browser.newContext()
-  const pageA = await contextA.newPage()
-  await openRoom(pageA, room)
+test('a join/leave notification appears when a peer connects or disconnects', async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'joinleaveowner', 'private')
 
-  const contextB = await browser.newContext()
-  const pageB = await contextB.newPage()
-  await pageB.goto(`/${room}`)
-  await pageB.getByLabel('Your name').fill('Bob')
-  await pageB.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageB.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageB.getByText('Connected', { exact: true })).toBeVisible()
+  const bobCtx = await browser.newContext()
+  const bobPage = await bobCtx.newPage()
+  const bobUsername = await inviteAndJoin(ownerPage, bobPage, 'joinleavebob', 'editor')
 
-  await expect(pageA.locator('.toast', { hasText: 'Bob joined' })).toBeVisible()
+  await expect(ownerPage.locator('.toast', { hasText: `${bobUsername} joined` })).toBeVisible()
 
-  await contextB.close()
-  await expect(pageA.locator('.toast', { hasText: 'Bob left' })).toBeVisible({ timeout: 10000 })
+  await bobCtx.close()
+  await expect(ownerPage.locator('.toast', { hasText: `${bobUsername} left` })).toBeVisible({ timeout: 10000 })
 
-  await contextA.close()
+  await ownerCtx.close()
 })
 
-test('creating a file adds it to the tree, and each file keeps separate content', async ({
-  page,
-}) => {
-  const room = uniqueRoom('files')
-  await openRoom(page, room)
+test('creating a file adds it to the tree, and each file keeps separate content', async ({ page }) => {
+  await openNewProject(page, 'files')
 
-  // The room starts with a default file.
+  // The project starts with a default file.
   await expect(page.locator('.file-tree-item')).toHaveCount(1)
   await typeCode(page, 'const inMain = true')
 
@@ -218,35 +326,25 @@ test('creating a file adds it to the tree, and each file keeps separate content'
 
   await expect(page.locator('.file-tree-item')).toHaveCount(2)
   await expect(page.locator('.language-picker')).toHaveValue('python')
-  // Switching to the new file shows an empty editor, not main.js's content.
   await expect(page.locator('.cm-content')).not.toContainText('inMain')
 
   await typeCode(page, 'def helper():\n    pass')
 
-  // Switching back to main.js shows its own content, untouched.
   await page.locator('.file-tree-item', { hasText: 'main.js' }).click()
   await expect(page.locator('.cm-content')).toContainText('inMain')
   await expect(page.locator('.cm-content')).not.toContainText('helper')
 })
 
-test('the language picker overrides a file\'s language independent of its extension', async ({
-  page,
-}) => {
-  const room = uniqueRoom('langpicker')
-  await openRoom(page, room)
+test("the language picker overrides a file's language independent of its extension", async ({ page }) => {
+  await openNewProject(page, 'langpicker')
 
   await expect(page.locator('.language-picker')).toHaveValue('javascript')
-
   await page.locator('.language-picker').selectOption('python')
-
   await expect(page.locator('.language-picker')).toHaveValue('python')
-  // main.js's extension is untouched by picking a different language.
   await expect(page.locator('.file-tree-item')).toHaveText(/main\.js/)
 })
 
-test('the theme toggle cycles Auto -> Light -> Dark and forces the color scheme', async ({
-  page,
-}) => {
+test('the theme toggle cycles Auto -> Light -> Dark and forces the color scheme', async ({ page }) => {
   await page.goto('/')
   const toggle = page.getByRole('button', { name: /Theme:/ })
   await expect(toggle).toHaveText('Theme: Auto')
@@ -266,8 +364,7 @@ test('the theme toggle cycles Auto -> Light -> Dark and forces the color scheme'
 })
 
 test('a syntax error is flagged in the gutter and clears once fixed', async ({ page }) => {
-  const room = uniqueRoom('syntax')
-  await openRoom(page, room)
+  await openNewProject(page, 'syntax')
 
   await typeCode(page, 'const x = ;')
   await expect(page.locator('.cm-gutter-lint .cm-lint-marker-error')).toBeVisible()
@@ -278,8 +375,7 @@ test('a syntax error is flagged in the gutter and clears once fixed', async ({ p
 })
 
 test('the Format button formats JavaScript via Prettier', async ({ page }) => {
-  const room = uniqueRoom('format')
-  await openRoom(page, room)
+  await openNewProject(page, 'format')
 
   await typeCode(page, 'function add(a,b){return a+b}')
   await page.getByRole('button', { name: 'Format' }).click()
@@ -300,8 +396,7 @@ const serverFormatCases: Array<{ language: string; unformatted: string; expected
 
 for (const { language, unformatted, expected } of serverFormatCases) {
   test(`the Format button formats ${language} via its server-side formatter`, async ({ page }) => {
-    const room = uniqueRoom(`format-${language}`)
-    await openRoom(page, room)
+    await openNewProject(page, `format-${language}`)
 
     await page.locator('.language-picker').selectOption(language)
     await typeCode(page, unformatted)
@@ -312,8 +407,7 @@ for (const { language, unformatted, expected } of serverFormatCases) {
 }
 
 test('the Run button executes code against the sandbox and shows stdout', async ({ page }) => {
-  const room = uniqueRoom('run')
-  await openRoom(page, room)
+  await openNewProject(page, 'run')
 
   await typeCode(page, 'console.log(2 + 2)')
   await page.getByRole('button', { name: /Run/ }).click()
@@ -324,8 +418,7 @@ test('the Run button executes code against the sandbox and shows stdout', async 
 })
 
 test('stdin can be sent interactively while a program is waiting for it', async ({ page }) => {
-  const room = uniqueRoom('interactive')
-  await openRoom(page, room)
+  await openNewProject(page, 'interactive')
 
   await page.locator('.language-picker').selectOption('python')
   await typeCode(page, 'name = input("name? ")\nprint("hello " + name)')
@@ -341,8 +434,7 @@ test('stdin can be sent interactively while a program is waiting for it', async 
 })
 
 test('Stop halts an in-flight run and the Run button works again afterward', async ({ page }) => {
-  const room = uniqueRoom('stoprun')
-  await openRoom(page, room)
+  await openNewProject(page, 'stoprun')
 
   await page.locator('.language-picker').selectOption('python')
   await typeCode(page, 'import time\nwhile True:\n    print("looping", flush=True)\n    time.sleep(0.2)')
@@ -361,14 +453,13 @@ test('Stop halts an in-flight run and the Run button works again afterward', asy
 })
 
 test('a chat message and its reply sync to another client', async ({ browser }) => {
-  const room = uniqueRoom('chat')
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, room)
-  await openRoom(pageB, room)
+  await openNewProject(pageA, 'chat')
+  await inviteAndJoin(pageA, pageB, 'chatb', 'editor')
 
   await pageA.getByRole('button', { name: 'Chat' }).click()
   await pageA.locator('.chat-compose .text-input').fill('hello from A')
@@ -388,22 +479,18 @@ test('a chat message and its reply sync to another client', async ({ browser }) 
   await contextB.close()
 })
 
-test('an inline code comment thread syncs, replies, and resolves across clients', async ({
-  browser,
-}) => {
-  const room = uniqueRoom('comment')
+test('an inline code comment thread syncs, replies, and resolves across clients', async ({ browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, room)
-  await openRoom(pageB, room)
+  await openNewProject(pageA, 'comment')
+  await inviteAndJoin(pageA, pageB, 'commentb', 'editor')
 
   await typeCode(pageA, 'const total = a + b')
   await expect(pageB.locator('.cm-content')).toContainText('total')
 
-  // Select the whole line on A and leave a comment.
   await pageA.locator('.cm-content').click()
   await pageA.keyboard.press('Home')
   await pageA.keyboard.press('Shift+End')
@@ -411,7 +498,6 @@ test('an inline code comment thread syncs, replies, and resolves across clients'
   await pageA.locator('.comment-textarea').fill('is this the right formula?')
   await pageA.locator('.comment-popover-actions button', { hasText: 'Comment' }).click()
 
-  // B should see the gutter marker appear without doing anything.
   await expect(pageB.locator('.cm-comment-marker')).toBeVisible({ timeout: 10000 })
 
   await pageB.locator('.cm-comment-marker').click()
@@ -421,8 +507,6 @@ test('an inline code comment thread syncs, replies, and resolves across clients'
     .fill('yes, matches the spec')
   await pageB.locator('.comment-popover .comment-reply-form button', { hasText: 'Reply' }).click()
 
-  // Submitting a new thread closes A's popover, so reopen it via the marker
-  // to check B's reply arrives live.
   await pageA.locator('.cm-comment-marker').click()
   await expect(pageA.locator('.comment-popover')).toContainText('yes, matches the spec')
 
@@ -434,50 +518,38 @@ test('an inline code comment thread syncs, replies, and resolves across clients'
   await contextB.close()
 })
 
-test('mentioning a present participant autocompletes and renders highlighted', async ({
-  browser,
-}) => {
-  const room = uniqueRoom('mention')
+test('mentioning a present participant autocompletes and renders highlighted', async ({ browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await pageA.goto(`/${room}`)
-  await pageA.getByLabel('Your name').fill('Alice')
-  await pageA.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageA.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageA.getByText('Connected', { exact: true })).toBeVisible()
-
-  await pageB.goto(`/${room}`)
-  await pageB.getByLabel('Your name').fill('Bobby')
-  await pageB.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageB.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageB.getByText('Connected', { exact: true })).toBeVisible()
-  await expect(pageA.locator('.presence-chip', { hasText: 'Bobby' })).toBeVisible()
+  await openNewProject(pageA, 'mentionowner')
+  const bobUsername = await inviteAndJoin(pageA, pageB, 'mentionbob', 'editor')
+  await expect(pageA.locator('.presence-chip', { hasText: bobUsername })).toBeVisible()
 
   await pageA.getByRole('button', { name: 'Chat' }).click()
-  await pageA.locator('.chat-compose .text-input').pressSequentially('hi @bob')
-  await expect(pageA.locator('.mention-suggestions')).toContainText('@Bobby')
-  await pageA.locator('.mention-suggestions button', { hasText: '@Bobby' }).click()
+  const prefix = bobUsername.slice(0, 4)
+  await pageA.locator('.chat-compose .text-input').pressSequentially(`hi @${prefix}`)
+  await expect(pageA.locator('.mention-suggestions')).toContainText(`@${bobUsername}`)
+  await pageA.locator('.mention-suggestions button', { hasText: `@${bobUsername}` }).click()
   await pageA.locator('.chat-compose .text-input').pressSequentially('welcome')
   await pageA.locator('.chat-compose button', { hasText: 'Send' }).click()
 
-  await expect(pageA.locator('.chat-message .mention')).toHaveText('@Bobby')
+  await expect(pageA.locator('.chat-message .mention')).toHaveText(`@${bobUsername}`)
 
   await contextA.close()
   await contextB.close()
 })
 
 test('an emoji reaction toggled by one client is visible to another', async ({ browser }) => {
-  const room = uniqueRoom('reaction')
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, room)
-  await openRoom(pageB, room)
+  await openNewProject(pageA, 'reaction')
+  await inviteAndJoin(pageA, pageB, 'reactionb', 'editor')
 
   await pageA.getByRole('button', { name: 'Chat' }).click()
   await pageA.locator('.chat-compose .text-input').fill('react to this')
@@ -491,7 +563,6 @@ test('an emoji reaction toggled by one client is visible to another', async ({ b
 
   await expect(pageA.locator('.reaction-pill')).toBeVisible({ timeout: 10000 })
 
-  // Clicking the same pill toggles it off for that user.
   await pageB.locator('.reaction-pill').click()
   await expect(pageA.locator('.reaction-pill')).toHaveCount(0, { timeout: 10000 })
 
@@ -502,34 +573,20 @@ test('an emoji reaction toggled by one client is visible to another', async ({ b
 test('mentioning a registered account delivers a notification they see after signing in', async ({
   browser,
 }) => {
-  const room = uniqueRoom('notify')
   const targetUsername = uniqueUsername('target')
-
   const contextTarget = await browser.newContext()
   const pageTarget = await contextTarget.newPage()
-  await pageTarget.goto('/')
-  await pageTarget.getByRole('button', { name: 'Log in' }).click()
-  await pageTarget.getByRole('button', { name: 'Sign up instead' }).click()
-  await pageTarget.getByLabel('Account username').fill(targetUsername)
-  await pageTarget.getByLabel('Account password').fill('correct-horse-battery')
-  await pageTarget.getByRole('button', { name: 'Sign up' }).click()
-  await expect(pageTarget.getByText(`Signed in as ${targetUsername}`)).toBeVisible()
-  // Log out so the mention below happens while they're fully offline.
+  await signUp(pageTarget, targetUsername)
   await pageTarget.getByRole('button', { name: 'Log out' }).click()
 
   const contextSender = await browser.newContext()
   const pageSender = await contextSender.newPage()
-  await openRoom(pageSender, room)
+  await openNewProject(pageSender, 'notifysender')
   await pageSender.getByRole('button', { name: 'Chat' }).click()
   await pageSender.locator('.chat-compose .text-input').fill(`hey @${targetUsername} look at this`)
   await pageSender.locator('.chat-compose button', { hasText: 'Send' }).click()
 
-  await pageTarget.getByRole('button', { name: 'Log in' }).click()
-  await pageTarget.getByLabel('Account username').fill(targetUsername)
-  await pageTarget.getByLabel('Account password').fill('correct-horse-battery')
-  await pageTarget.getByRole('button', { name: 'Log in' }).click()
-  await expect(pageTarget.getByText(`Signed in as ${targetUsername}`)).toBeVisible()
-
+  await logIn(pageTarget, targetUsername)
   const bell = pageTarget.locator('.notification-bell button')
   await expect(bell).toContainText('1', { timeout: 20000 })
   await bell.click()
@@ -550,14 +607,11 @@ test('signing up creates an account and shows the signed-in state', async ({ pag
   await page.getByRole('button', { name: 'Sign up' }).click()
 
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
-  // The free-text name field defers to the account identity once signed in.
   await expect(page.getByLabel('Your name')).toBeDisabled()
   await expect(page.getByLabel('Your name')).toHaveValue(username)
 })
 
-test('a wrong password is rejected and a correct one logs back in after logout', async ({
-  page,
-}) => {
+test('a wrong password is rejected and a correct one logs back in after logout', async ({ page }) => {
   const username = uniqueUsername('login')
   await page.goto('/')
 
@@ -583,54 +637,29 @@ test('a wrong password is rejected and a correct one logs back in after logout',
 })
 
 test('a signed-in session survives a page reload', async ({ page }) => {
-  const username = uniqueUsername('persist')
-  await page.goto('/')
-
-  await page.getByRole('button', { name: 'Log in' }).click()
-  await page.getByRole('button', { name: 'Sign up instead' }).click()
-  await page.getByLabel('Account username').fill(username)
-  await page.getByLabel('Account password').fill('correct-horse-battery')
-  await page.getByRole('button', { name: 'Sign up' }).click()
-  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
-
+  const username = uniqueUsername('persistacct')
+  await signUp(page, username)
   await page.reload()
-
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
 })
 
-test("a signed-in account's username is used as the collaborator identity", async ({
-  browser,
-}) => {
-  const username = uniqueUsername('collabid')
-  const room = uniqueRoom('collabid')
-  const contextA = await browser.newContext()
-  const pageA = await contextA.newPage()
+test("a signed-in account's username is used as the collaborator identity", async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  const username = await openNewProject(ownerPage, 'collabid', 'private')
 
-  await pageA.goto(`/${room}`)
-  await pageA.getByRole('button', { name: 'Log in' }).click()
-  await pageA.getByRole('button', { name: 'Sign up instead' }).click()
-  await pageA.getByLabel('Account username').fill(username)
-  await pageA.getByLabel('Account password').fill('correct-horse-battery')
-  await pageA.getByRole('button', { name: 'Sign up' }).click()
-  await expect(pageA.getByText(`Signed in as ${username}`)).toBeVisible()
+  const viewerCtx = await browser.newContext()
+  const viewerPage = await viewerCtx.newPage()
+  await inviteAndJoin(ownerPage, viewerPage, 'collabidviewer', 'viewer')
 
-  await pageA.getByPlaceholder('Passphrase (optional)').fill('')
-  await pageA.getByRole('button', { name: 'Continue' }).click()
-  await expect(pageA.getByText('Connected', { exact: true })).toBeVisible()
+  await expect(viewerPage.locator('.presence-chip', { hasText: username })).toBeVisible()
 
-  const contextB = await browser.newContext()
-  const pageB = await contextB.newPage()
-  await openRoom(pageB, room)
-
-  await expect(pageB.locator('.presence-chip', { hasText: username })).toBeVisible()
-
-  await contextA.close()
-  await contextB.close()
+  await ownerCtx.close()
+  await viewerCtx.close()
 })
 
 test('the Source Control panel shows an untracked file and its diff', async ({ page }) => {
-  const room = uniqueRoom('sourcecontrol')
-  await openRoom(page, room)
+  await openNewProject(page, 'sourcecontrol')
 
   await typeCode(page, 'console.log("first version")')
   await page.waitForTimeout(500) // let the edit flush before the server syncs to disk
@@ -648,8 +677,7 @@ test('the Source Control panel shows an untracked file and its diff', async ({ p
 })
 
 test('committing clears the changes list and records history', async ({ page }) => {
-  const room = uniqueRoom('sccommit')
-  await openRoom(page, room)
+  await openNewProject(page, 'sccommit')
 
   await typeCode(page, 'console.log("v1")')
   await page.waitForTimeout(500)
@@ -668,14 +696,13 @@ test('committing clears the changes list and records history', async ({ page }) 
 test('creating a branch, committing on it, and switching back updates the live content for everyone', async ({
   browser,
 }) => {
-  const room = uniqueRoom('scbranch')
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await openRoom(pageA, room)
-  await openRoom(pageB, room)
+  await openNewProject(pageA, 'scbranch')
+  await inviteAndJoin(pageA, pageB, 'scbranchb', 'editor')
 
   await typeCode(pageA, 'console.log("v1 on master")')
   await pageA.waitForTimeout(500)
@@ -698,14 +725,13 @@ test('creating a branch, committing on it, and switching back updates the live c
   await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
 
   // B (never having touched Source Control) should see feature-a's content
-  // live, since a room is one shared document -- no per-user branch view.
+  // live, since a project is one shared document -- no per-user branch view.
   await expect(pageB.locator('.cm-content')).toContainText('v2 on feature-a', { timeout: 10000 })
 
   pageA.once('dialog', (dialog) => dialog.accept())
   await pageA.locator('.sc-branch-select').selectOption('master')
   await expect(pageA.locator('.sc-branch-select')).toHaveValue('master', { timeout: 10000 })
 
-  // Switching back to master on A should revert content for BOTH clients.
   await expect(pageA.locator('.cm-content')).toContainText('v1 on master', { timeout: 10000 })
   await expect(pageA.locator('.cm-content')).not.toContainText('feature-a')
   await expect(pageB.locator('.cm-content')).toContainText('v1 on master', { timeout: 10000 })

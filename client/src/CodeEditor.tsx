@@ -52,6 +52,7 @@ interface CodeEditorProps {
   provider: WebsocketProvider
   language: LanguageConfig
   isDark: boolean
+  readOnly: boolean
   threads: CommentThreadData[]
   onOpenThread: (threadId: string, coords: Coords) => void
   onReady?: (handle: EditorHandle) => void
@@ -62,6 +63,7 @@ function CodeEditor({
   provider,
   language,
   isDark,
+  readOnly,
   threads,
   onOpenThread,
   onReady,
@@ -86,6 +88,7 @@ function CodeEditor({
       lintGutter(),
       commentThreadsField.init(() => threads),
       commentGutter(ytext, onOpenThread),
+      EditorState.readOnly.of(readOnly),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       EditorView.lineWrapping,
       keymap.of([
@@ -135,7 +138,7 @@ function CodeEditor({
       view.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytext, provider, language, isDark, onOpenThread, onReady])
+  }, [ytext, provider, language, isDark, readOnly, onOpenThread, onReady])
 
   // Thread data changes far more often than the editor's identity (file,
   // language, theme) should force a full teardown/rebuild, so it's pushed

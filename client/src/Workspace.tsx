@@ -22,6 +22,7 @@ import {
 import { usePresence } from './usePresence'
 import { extractMentions } from './mentions'
 import { notifyMention } from './notifications'
+import { atLeast, type Role } from './projects'
 
 interface WorkspaceUser {
   name: string
@@ -30,24 +31,26 @@ interface WorkspaceUser {
 
 interface WorkspaceProps {
   room: string
-  passphrase: string
+  token: string | null
   user: WorkspaceUser
+  role: Role
   isDark: boolean
-  onAuthError: () => void
-  onConnected: () => void
+  onAccessRevoked: () => void
 }
 
-const INVALID_PASSPHRASE_CODE = 4001
+const FORBIDDEN_CODE = 4003
+const PROJECT_NOT_FOUND_CODE = 4004
 
 type OpenThread =
   | { mode: 'new'; from: number; to: number; coords: Coords }
   | { mode: 'view'; threadId: string; coords: Coords }
 
-function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }: WorkspaceProps) {
+function Workspace({ room, token, user, role, isDark, onAccessRevoked }: WorkspaceProps) {
+  const canEdit = atLeast(role, 'editor')
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', room, ydoc, { params: { passphrase } }),
-    [room, ydoc, passphrase],
+    () => new WebsocketProvider('ws://localhost:1234', room, ydoc, { params: { token: token ?? '' } }),
+    [room, ydoc, token],
   )
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const { files, createFile, renameFile, deleteFile, setFileLanguage, ensureDefaultFile } =
@@ -69,12 +72,11 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
   useEffect(() => {
     const onStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
       setStatus(status)
-      if (status === 'connected') onConnected()
     }
     const onClose = (event: CloseEvent) => {
-      if (event.code === INVALID_PASSPHRASE_CODE) {
+      if (event.code === FORBIDDEN_CODE || event.code === PROJECT_NOT_FOUND_CODE) {
         provider.disconnect()
-        onAuthError()
+        onAccessRevoked()
       }
     }
     provider.on('status', onStatus)
@@ -83,9 +85,15 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
     return () => {
       provider.off('status', onStatus)
       provider.off('connection-close', onClose)
+      // Explicitly broadcasts "I'm gone" over the still-open connection
+      // before closing the transport, rather than relying solely on the
+      // server noticing the socket close -- which was leaving stale
+      // presence entries behind under React StrictMode's dev-mode
+      // mount/cleanup/remount cycle.
+      provider.awareness.setLocalState(null)
       provider.disconnect()
     }
-  }, [provider, onAuthError, onConnected])
+  }, [provider, onAccessRevoked])
 
   // Once connected, make sure there's a file to show: seed a default the first
   // time anyone opens a fresh document, or fall back to another file if the
@@ -181,6 +189,7 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
       <FileTree
         files={files}
         activeId={activeId}
+        readOnly={!canEdit}
         onSelect={setActiveId}
         onCreate={(name) => setActiveId(createFile(name))}
         onRename={renameFile}
@@ -201,7 +210,7 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
             <select
               className="language-badge language-picker"
               value={activeLanguage.id}
-              disabled={!activeId}
+              disabled={!activeId || !canEdit}
               onChange={(e) => activeId && setFileLanguage(activeId, e.target.value)}
               aria-label="Language"
             >
@@ -211,7 +220,7 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
                 </option>
               ))}
             </select>
-            {canFormat(activeLanguage) && (
+            {canFormat(activeLanguage) && canEdit && (
               <button
                 type="button"
                 className="btn btn-small"
@@ -249,6 +258,7 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
             provider={provider}
             language={activeLanguage}
             isDark={isDark}
+            readOnly={!canEdit}
             threads={threads}
             onOpenThread={handleOpenThread}
             onReady={setEditorHandle}
@@ -268,7 +278,12 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
         />
       )}
       {sourceControlOpen && (
-        <SourceControlPanel room={room} user={user} onClose={() => setSourceControlOpen(false)} />
+        <SourceControlPanel
+          room={room}
+          user={user}
+          canEdit={canEdit}
+          onClose={() => setSourceControlOpen(false)}
+        />
       )}
       {openThread?.mode === 'new' && (
         <CommentPopover

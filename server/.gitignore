@@ -1,8 +1,9 @@
 node_modules
 *.log
 data/
-passphrases.json
 users.json
 notifications.json
+projects.json
+invites.json
 tools/
 repos/

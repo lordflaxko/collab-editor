@@ -21,6 +21,7 @@ import {
 interface SourceControlPanelProps {
   room: string
   user: { name: string }
+  canEdit: boolean
   onClose: () => void
 }
 
@@ -48,7 +49,7 @@ function DiffView({ diff }: { diff: GitDiff | null }) {
   )
 }
 
-function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
+function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanelProps) {
   const [tab, setTab] = useState<Tab>('changes')
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [commits, setCommits] = useState<GitCommit[]>([])
@@ -241,6 +242,7 @@ function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
         <select
           className="sc-branch-select"
           value={branches?.current ?? ''}
+          disabled={!canEdit}
           onChange={(e) => handleSwitchBranch(e.target.value)}
         >
           {(branches?.all ?? []).map((name) => (
@@ -249,15 +251,19 @@ function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
             </option>
           ))}
         </select>
-        <input
-          className="text-input sc-branch-input"
-          value={newBranchName}
-          onChange={(e) => setNewBranchName(e.target.value)}
-          placeholder="New branch name"
-        />
-        <button type="button" className="btn btn-small" onClick={handleCreateBranch}>
-          Create
-        </button>
+        {canEdit && (
+          <>
+            <input
+              className="text-input sc-branch-input"
+              value={newBranchName}
+              onChange={(e) => setNewBranchName(e.target.value)}
+              placeholder="New branch name"
+            />
+            <button type="button" className="btn btn-small" onClick={handleCreateBranch}>
+              Create
+            </button>
+          </>
+        )}
       </div>
       <div className="sc-tabs">
         <button
@@ -312,22 +318,24 @@ function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
               ))
             )}
           </div>
-          <div className="sc-commit-box">
-            <input
-              className="text-input"
-              value={commitMessage}
-              onChange={(e) => setCommitMessage(e.target.value)}
-              placeholder="Commit message"
-            />
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={handleCommit}
-              disabled={committing || !commitMessage.trim()}
-            >
-              {committing ? 'Committing…' : 'Commit'}
-            </button>
-          </div>
+          {canEdit && (
+            <div className="sc-commit-box">
+              <input
+                className="text-input"
+                value={commitMessage}
+                onChange={(e) => setCommitMessage(e.target.value)}
+                placeholder="Commit message"
+              />
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={handleCommit}
+                disabled={committing || !commitMessage.trim()}
+              >
+                {committing ? 'Committing…' : 'Commit'}
+              </button>
+            </div>
+          )}
         </>
       )}
       {tab === 'history' && !loading && (
@@ -362,14 +370,16 @@ function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
             placeholder="Personal access token"
           />
           <div className="sc-remote-note">Never stored -- re-enter each time you open this panel.</div>
-          <div className="sc-remote-actions">
-            <button type="button" className="btn btn-small" onClick={handlePush} disabled={remoteBusy}>
-              Push
-            </button>
-            <button type="button" className="btn btn-small" onClick={handlePull} disabled={remoteBusy}>
-              Pull
-            </button>
-          </div>
+          {canEdit && (
+            <div className="sc-remote-actions">
+              <button type="button" className="btn btn-small" onClick={handlePush} disabled={remoteBusy}>
+                Push
+              </button>
+              <button type="button" className="btn btn-small" onClick={handlePull} disabled={remoteBusy}>
+                Pull
+              </button>
+            </div>
+          )}
           {remoteError && <div className="format-error">{remoteError}</div>}
           {remoteMessage && <div className="sc-remote-message">{remoteMessage}</div>}
 
@@ -391,37 +401,39 @@ function SourceControlPanel({ room, user, onClose }: SourceControlPanelProps) {
                 ))
               )}
             </div>
-            <div className="sc-pr-form">
-              <input
-                className="text-input"
-                value={prTitle}
-                onChange={(e) => setPrTitle(e.target.value)}
-                placeholder="Pull request title"
-              />
-              <div className="sc-pr-form-row">
-                <span className="comment-time">{branches?.current ?? '…'} →</span>
+            {canEdit && (
+              <div className="sc-pr-form">
                 <input
                   className="text-input"
-                  value={prBase}
-                  onChange={(e) => setPrBase(e.target.value)}
-                  placeholder="base branch"
+                  value={prTitle}
+                  onChange={(e) => setPrTitle(e.target.value)}
+                  placeholder="Pull request title"
                 />
+                <div className="sc-pr-form-row">
+                  <span className="comment-time">{branches?.current ?? '…'} →</span>
+                  <input
+                    className="text-input"
+                    value={prBase}
+                    onChange={(e) => setPrBase(e.target.value)}
+                    placeholder="base branch"
+                  />
+                </div>
+                <textarea
+                  className="comment-textarea"
+                  value={prBody}
+                  onChange={(e) => setPrBody(e.target.value)}
+                  placeholder="Description (optional)"
+                />
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  onClick={handleCreatePr}
+                  disabled={remoteBusy || !prTitle.trim()}
+                >
+                  Open pull request
+                </button>
               </div>
-              <textarea
-                className="comment-textarea"
-                value={prBody}
-                onChange={(e) => setPrBody(e.target.value)}
-                placeholder="Description (optional)"
-              />
-              <button
-                type="button"
-                className="btn btn-small"
-                onClick={handleCreatePr}
-                disabled={remoteBusy || !prTitle.trim()}
-              >
-                Open pull request
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
