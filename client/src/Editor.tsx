@@ -2,11 +2,15 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
+import { TableKit } from '@tiptap/extension-table'
+import Image from '@tiptap/extension-image'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { useEffect, useMemo, useState } from 'react'
 import Toolbar from './Toolbar'
 import Presence from './Presence'
+import SlashCommand from './SlashCommand'
+import { handleImageDrop, handleImagePaste } from './imagePaste'
 
 interface EditorUser {
   name: string
@@ -64,7 +68,19 @@ function Editor({ room, passphrase, user, onAuthError, onConnected }: EditorProp
         provider,
         user,
       }),
+      TableKit.configure({
+        table: { resizable: true },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
+      SlashCommand,
     ],
+    editorProps: {
+      handlePaste: handleImagePaste,
+      handleDrop: handleImageDrop,
+    },
   })
 
   // Keep the awareness state in sync when the user edits their name/color

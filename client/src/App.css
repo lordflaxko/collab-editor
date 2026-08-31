@@ -311,6 +311,121 @@
   border-top: 1px solid var(--border);
 }
 
+/* Tables */
+
+.editor-wrapper .tiptap .tableWrapper {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.editor-wrapper .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.editor-wrapper .tiptap td,
+.editor-wrapper .tiptap th {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  position: relative;
+}
+
+.editor-wrapper .tiptap th {
+  background: var(--social-bg);
+  font-weight: 600;
+  text-align: left;
+}
+
+.editor-wrapper .tiptap .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-bg);
+  pointer-events: none;
+}
+
+.editor-wrapper .tiptap .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.editor-wrapper .tiptap.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Images */
+
+.editor-wrapper .tiptap img {
+  max-width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.editor-wrapper .tiptap img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Slash command menu (mounted to document.body) */
+
+.slash-menu {
+  z-index: 50;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slash-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--sans);
+}
+
+.slash-menu-item:hover,
+.slash-menu-item.is-selected {
+  background: var(--accent-bg);
+}
+
+.slash-menu-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.slash-menu-desc {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.slash-menu-empty {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
 /* Collaboration cursors */
 
 .collaboration-carets__caret {

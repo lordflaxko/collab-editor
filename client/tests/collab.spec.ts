@@ -133,3 +133,32 @@ test('setting your name shows up in the other client\'s presence list', async ({
   await contextA.close()
   await contextB.close()
 })
+
+test('the slash menu inserts a table, and images sync to other clients', async ({ browser }) => {
+  const room = uniqueRoom('blocks')
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await openRoom(pageA, room)
+
+  await pageA.locator('.tiptap').click()
+  await pageA.keyboard.type('/table')
+  await expect(pageA.locator('.slash-menu')).toBeVisible()
+  await pageA.keyboard.press('Enter')
+  await expect(pageA.locator('table')).toBeVisible()
+
+  await pageA.keyboard.press('Control+End')
+  await pageA.keyboard.press('Enter')
+  pageA.once('dialog', (dialog) => dialog.accept('https://example.com/test-image.png'))
+  await pageA.getByTitle('Insert image').click()
+  await expect(pageA.locator('.tiptap img')).toBeVisible()
+
+  await openRoom(pageB, room)
+  await expect(pageB.locator('table')).toBeVisible()
+  await expect(pageB.locator('.tiptap img')).toBeVisible()
+
+  await contextA.close()
+  await contextB.close()
+})

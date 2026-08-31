@@ -87,6 +87,22 @@ const BUTTON_GROUPS: ToolbarButton[][] = [
   ],
   [
     {
+      label: '🖼',
+      title: 'Insert image',
+      run: (editor) => {
+        const url = window.prompt('Image URL')
+        if (url) editor.chain().focus().setImage({ src: url }).run()
+      },
+    },
+    {
+      label: '⊞',
+      title: 'Insert table',
+      run: (editor) =>
+        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
+  ],
+  [
+    {
       label: '↺',
       title: 'Undo',
       run: (editor) => editor.chain().focus().undo().run(),
