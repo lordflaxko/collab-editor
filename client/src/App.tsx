@@ -79,24 +79,33 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Collab Editor</h1>
+      <div className="app-header">
+        <h1>Collab Editor</h1>
+      </div>
       <div className="doc-bar">
         <span className="doc-id">
           Document: <code>{room}</code>
         </span>
-        <button type="button" onClick={() => navigator.clipboard.writeText(window.location.href)}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => navigator.clipboard.writeText(window.location.href)}
+        >
           Copy link
         </button>
-        <button type="button" onClick={newDocument}>
+        <button type="button" className="btn" onClick={newDocument}>
           New document
         </button>
         <form className="join-form" onSubmit={openDocument}>
           <input
+            className="text-input"
             value={joinInput}
             onChange={(e) => setJoinInput(e.target.value)}
             placeholder="Open document id…"
           />
-          <button type="submit">Open</button>
+          <button type="submit" className="btn">
+            Open
+          </button>
         </form>
       </div>
       {passphrase === null ? (
@@ -108,13 +117,16 @@ function App() {
           {authError && <p className="error">Incorrect passphrase.</p>}
           <div className="unlock-row">
             <input
+              className="text-input"
               type="password"
               value={passphraseInput}
               onChange={(e) => setPassphraseInput(e.target.value)}
               placeholder="Passphrase (optional)"
               autoFocus
             />
-            <button type="submit">Continue</button>
+            <button type="submit" className="btn">
+              Continue
+            </button>
           </div>
         </form>
       ) : (

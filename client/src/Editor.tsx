@@ -5,6 +5,7 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { useEffect, useMemo, useState } from 'react'
+import Toolbar from './Toolbar'
 
 const USER_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6']
 
@@ -70,7 +71,13 @@ function Editor({ room, passphrase, onAuthError, onConnected }: EditorProps) {
 
   return (
     <div className="editor-wrapper">
-      <p className="status">Sync: {status}</p>
+      <div className="editor-header">
+        <span className={`status status-${status}`}>
+          <span className="status-dot" />
+          {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting…' : 'Disconnected'}
+        </span>
+        {editor && <Toolbar editor={editor} />}
+      </div>
       <EditorContent editor={editor} />
     </div>
   )

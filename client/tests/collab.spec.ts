@@ -8,7 +8,7 @@ async function openRoom(page: Page, room: string, passphrase = '') {
   await page.goto(`/${room}`)
   await page.getByPlaceholder('Passphrase (optional)').fill(passphrase)
   await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByText('Sync: connected')).toBeVisible()
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible()
 }
 
 test('fresh visit with no path auto-generates a room id in the URL', async ({ page }) => {
