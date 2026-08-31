@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
-import Editor from './Editor'
+import Workspace from './Workspace'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import './App.css'
 
@@ -150,7 +150,7 @@ function App() {
           </div>
         </form>
       ) : (
-        <Editor
+        <Workspace
           key={`${room}:${passphrase}`}
           room={room}
           passphrase={passphrase}
