@@ -78,6 +78,15 @@ export function useFileTree(ydoc: Y.Doc) {
     [filesMap],
   )
 
+  const setFileLanguage = useCallback(
+    (id: string, languageId: string) => {
+      const meta = filesMap.get(id)
+      if (!meta) return
+      filesMap.set(id, { ...meta, languageId })
+    },
+    [filesMap],
+  )
+
   const deleteFile = useCallback(
     (id: string) => {
       ydoc.transact(() => {
@@ -97,5 +106,5 @@ export function useFileTree(ydoc: Y.Doc) {
     return createFile(DEFAULT_FILE_NAME)
   }, [order, createFile])
 
-  return { files, createFile, renameFile, deleteFile, ensureDefaultFile }
+  return { files, createFile, renameFile, deleteFile, setFileLanguage, ensureDefaultFile }
 }

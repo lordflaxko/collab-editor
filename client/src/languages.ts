@@ -49,6 +49,7 @@ export const LANGUAGES: LanguageConfig[] = [
     extension: '.java',
     cm: () => java(),
     piston: { language: 'java', version: '15.0.2' },
+    serverFormat: true,
   },
   {
     id: 'cpp',
@@ -56,6 +57,7 @@ export const LANGUAGES: LanguageConfig[] = [
     extension: '.cpp',
     cm: () => cpp(),
     piston: { language: 'c++', version: '10.2.0' },
+    serverFormat: true,
   },
   {
     id: 'rust',
@@ -63,6 +65,7 @@ export const LANGUAGES: LanguageConfig[] = [
     extension: '.rs',
     cm: () => rust(),
     piston: { language: 'rust', version: '1.68.2' },
+    serverFormat: true,
   },
   {
     id: 'go',
@@ -70,6 +73,7 @@ export const LANGUAGES: LanguageConfig[] = [
     extension: '.go',
     cm: () => go(),
     piston: { language: 'go', version: '1.16.2' },
+    serverFormat: true,
   },
 ]
 

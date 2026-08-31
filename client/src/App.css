@@ -84,6 +84,23 @@
   gap: 0.3rem;
 }
 
+.account-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.account-status {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.account-error {
+  font-size: 0.75rem;
+  color: #e0554f;
+}
+
 .text-input {
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
@@ -288,6 +305,16 @@
   font-family: var(--mono);
 }
 
+.language-picker {
+  background: var(--code-bg);
+  cursor: pointer;
+}
+
+.language-picker:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .format-error {
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
@@ -347,6 +374,27 @@
   height: 7px;
   border-radius: 50%;
   background: var(--chip-color, #9ca3af);
+}
+
+.toast-stack {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--text-h);
+  box-shadow: var(--shadow);
 }
 
 /* Code editor */
@@ -438,4 +486,320 @@
   color: var(--text);
   font-size: 0.75rem;
   margin-top: 0.3rem;
+}
+
+/* Comment gutter + popover */
+
+.cm-comment-gutter {
+  width: 1.2rem;
+}
+
+.cm-comment-marker {
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.comment-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 260px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.comment-popover-header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.comment-popover-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.comment-thread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  font-size: 0.8rem;
+}
+
+.comment-reply {
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.comment-time {
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.comment-text {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+}
+
+.comment-reply-form {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.comment-reply-form .text-input {
+  flex: 1;
+}
+
+/* Chat panel */
+
+.chat-panel {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.chat-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.chat-message {
+  font-size: 0.8rem;
+}
+
+.chat-reply-toggle {
+  margin-top: 0.25rem;
+}
+
+.chat-thread {
+  margin-top: 0.4rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chat-reply {
+  font-size: 0.78rem;
+}
+
+.chat-compose {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.chat-compose .text-input {
+  flex: 1;
+}
+
+/* Mentions */
+
+.mention-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.mention-input-wrap textarea,
+.mention-input-wrap input {
+  width: 100%;
+}
+
+.mention-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1001;
+  margin: 2px 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  min-width: 8rem;
+}
+
+.mention-suggestions button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mention-suggestions button:hover {
+  background: var(--accent-bg);
+}
+
+.mention {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Reactions */
+
+.reactions-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.reaction-pill {
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.reaction-pill-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.reaction-add-btn {
+  border: 1px dashed var(--border);
+  background: none;
+  border-radius: 999px;
+  width: 1.4rem;
+  height: 1.4rem;
+  line-height: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.reaction-picker-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1001;
+  margin-top: 4px;
+}
+
+/* Notifications */
+
+.notification-bell {
+  position: relative;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1001;
+  margin-top: 4px;
+  width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-empty {
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.notification-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-h);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.notification-item:hover {
+  background: var(--accent-bg);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-from {
+  font-weight: 600;
+}
+
+.notification-text {
+  margin: 0.2rem 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
 }

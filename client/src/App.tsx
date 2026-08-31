@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import Workspace from './Workspace'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
+import { useTheme } from './useTheme'
+import { useAccount } from './account'
+import AccountPanel from './AccountPanel'
+import NotificationBell from './NotificationBell'
 import './App.css'
+
+const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' } as const
 
 function generateRoomId() {
   return crypto.randomUUID().slice(0, 8)
@@ -30,9 +36,18 @@ function App() {
   const [authError, setAuthError] = useState(false)
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
+  const { preference: themePreference, isDark, cyclePreference } = useTheme()
+  const {
+    username: accountUsername,
+    token: accountToken,
+    error: accountError,
+    signup: accountSignup,
+    login: accountLogin,
+    logout: accountLogout,
+  } = useAccount()
   const user = useMemo(
-    () => ({ name: displayName.trim() || 'Anonymous', color: userColor }),
-    [displayName, userColor],
+    () => ({ name: accountUsername ?? (displayName.trim() || 'Anonymous'), color: userColor }),
+    [accountUsername, displayName, userColor],
   )
 
   function handleNameChange(name: string) {
@@ -56,18 +71,20 @@ function App() {
     setAuthError(false)
   }, [room])
 
-  function newDocument() {
-    const id = generateRoomId()
+  function openRoom(id: string) {
     window.history.pushState(null, '', `/${id}`)
     setRoom(id)
+  }
+
+  function newDocument() {
+    openRoom(generateRoomId())
   }
 
   function openDocument(e: FormEvent) {
     e.preventDefault()
     const id = joinInput.trim()
     if (!id) return
-    window.history.pushState(null, '', `/${id}`)
-    setRoom(id)
+    openRoom(id)
     setJoinInput('')
   }
 
@@ -100,12 +117,22 @@ function App() {
         </span>
         <input
           className="text-input"
-          value={displayName}
+          value={accountUsername ?? displayName}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="Your name"
           aria-label="Your name"
+          disabled={accountUsername !== null}
+          title={accountUsername !== null ? 'Signed in: your account name is used instead' : undefined}
           style={{ '--dot-color': userColor } as CSSProperties}
         />
+        <AccountPanel
+          username={accountUsername}
+          error={accountError}
+          onSignup={accountSignup}
+          onLogin={accountLogin}
+          onLogout={accountLogout}
+        />
+        <NotificationBell token={accountToken} onOpenRoom={openRoom} />
         <button
           type="button"
           className="btn"
@@ -115,6 +142,14 @@ function App() {
         </button>
         <button type="button" className="btn" onClick={newDocument}>
           New document
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={cyclePreference}
+          title="Cycle theme: Auto → Light → Dark"
+        >
+          Theme: {THEME_LABEL[themePreference]}
         </button>
         <form className="join-form" onSubmit={openDocument}>
           <input
@@ -155,6 +190,7 @@ function App() {
           room={room}
           passphrase={passphrase}
           user={user}
+          isDark={isDark}
           onAuthError={handleAuthError}
           onConnected={handleConnected}
         />
