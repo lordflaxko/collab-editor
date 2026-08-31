@@ -112,3 +112,24 @@ test('a passphrase set at creation is required to reopen the document elsewhere'
   await expect(page3.getByText('Secret content')).toBeVisible()
   await context3.close()
 })
+
+test('setting your name shows up in the other client\'s presence list', async ({ browser }) => {
+  const room = uniqueRoom('presence')
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await pageA.goto(`/${room}`)
+  await pageA.getByLabel('Your name').fill('Alice')
+  await pageA.getByPlaceholder('Passphrase (optional)').fill('')
+  await pageA.getByRole('button', { name: 'Continue' }).click()
+  await expect(pageA.getByText('Connected', { exact: true })).toBeVisible()
+
+  await openRoom(pageB, room)
+
+  await expect(pageB.locator('.presence-chip', { hasText: 'Alice' })).toBeVisible()
+
+  await contextA.close()
+  await contextB.close()
+})

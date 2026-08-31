@@ -90,6 +90,11 @@
   box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
+.doc-bar input[aria-label='Your name'] {
+  width: 8.5rem;
+  border-left: 3px solid var(--dot-color, var(--border));
+}
+
 /* Unlock gate */
 
 .unlock-gate {
@@ -182,6 +187,31 @@
 
 .status-disconnected .status-dot {
   background: #f87171;
+}
+
+.presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+}
+
+.presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chip-color, #9ca3af);
 }
 
 .toolbar {

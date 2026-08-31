@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import Editor from './Editor'
+import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import './App.css'
 
 function generateRoomId() {
@@ -27,6 +28,17 @@ function App() {
   const [passphrase, setPassphrase] = useState<string | null>(() => rememberedPassphrase(room))
   const [passphraseInput, setPassphraseInput] = useState('')
   const [authError, setAuthError] = useState(false)
+  const [displayName, setDisplayName] = useState(() => loadDisplayName())
+  const userColor = useMemo(() => loadUserColor(), [])
+  const user = useMemo(
+    () => ({ name: displayName.trim() || 'Anonymous', color: userColor }),
+    [displayName, userColor],
+  )
+
+  function handleNameChange(name: string) {
+    setDisplayName(name)
+    saveDisplayName(name)
+  }
 
   useEffect(() => {
     const onPopState = () => {
@@ -86,6 +98,14 @@ function App() {
         <span className="doc-id">
           Document: <code>{room}</code>
         </span>
+        <input
+          className="text-input"
+          value={displayName}
+          onChange={(e) => handleNameChange(e.target.value)}
+          placeholder="Your name"
+          aria-label="Your name"
+          style={{ '--dot-color': userColor } as CSSProperties}
+        />
         <button
           type="button"
           className="btn"
@@ -134,6 +154,7 @@ function App() {
           key={`${room}:${passphrase}`}
           room={room}
           passphrase={passphrase}
+          user={user}
           onAuthError={handleAuthError}
           onConnected={handleConnected}
         />

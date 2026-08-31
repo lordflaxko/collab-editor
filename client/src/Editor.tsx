@@ -6,26 +6,24 @@ import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { useEffect, useMemo, useState } from 'react'
 import Toolbar from './Toolbar'
+import Presence from './Presence'
 
-const USER_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a78bfa', '#f472b6']
-
-function randomUser() {
-  return {
-    name: `User ${Math.floor(Math.random() * 1000)}`,
-    color: USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)],
-  }
+interface EditorUser {
+  name: string
+  color: string
 }
 
 interface EditorProps {
   room: string
   passphrase: string
+  user: EditorUser
   onAuthError: () => void
   onConnected: () => void
 }
 
 const INVALID_PASSPHRASE_CODE = 4001
 
-function Editor({ room, passphrase, onAuthError, onConnected }: EditorProps) {
+function Editor({ room, passphrase, user, onAuthError, onConnected }: EditorProps) {
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
     () => new WebsocketProvider('ws://localhost:1234', room, ydoc, { params: { passphrase } }),
@@ -64,10 +62,16 @@ function Editor({ room, passphrase, onAuthError, onConnected }: EditorProps) {
       }),
       CollaborationCaret.configure({
         provider,
-        user: randomUser(),
+        user,
       }),
     ],
   })
+
+  // Keep the awareness state in sync when the user edits their name/color
+  // without tearing down and reconnecting the provider.
+  useEffect(() => {
+    editor?.commands.updateUser(user)
+  }, [editor, user])
 
   return (
     <div className="editor-wrapper">
@@ -76,6 +80,7 @@ function Editor({ room, passphrase, onAuthError, onConnected }: EditorProps) {
           <span className="status-dot" />
           {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting…' : 'Disconnected'}
         </span>
+        {editor && <Presence editor={editor} />}
         {editor && <Toolbar editor={editor} />}
       </div>
       <EditorContent editor={editor} />
