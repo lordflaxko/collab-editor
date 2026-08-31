@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "simple-git": "^3.36.0",
     "ws": "^8.21.3",
     "y-websocket": "^1.5.4",
     "yjs": "^13.6.32"

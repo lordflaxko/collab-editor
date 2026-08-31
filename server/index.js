@@ -12,6 +12,8 @@ const { runCode } = require('./run')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
 const notifications = require('./notifications')
+const git = require('./git')
+const githubApi = require('./githubApi')
 
 const port = process.env.PORT || 1234
 
@@ -135,6 +137,149 @@ const server = http.createServer(async (req, res) => {
     notifications.markAllRead(username)
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true }))
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/status') {
+    try {
+      const { room } = await readJsonBody(req)
+      const status = await git.getStatus(room)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(status))
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/log') {
+    try {
+      const { room } = await readJsonBody(req)
+      const commits = await git.getLog(room)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ commits }))
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/diff') {
+    try {
+      const { room, path: filePath } = await readJsonBody(req)
+      const result = await git.getDiff(room, filePath)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/commit') {
+    try {
+      const { room, message, author } = await readJsonBody(req)
+      const commits = await git.commitAll(room, message, author)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ commits }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/branches') {
+    try {
+      const { room } = await readJsonBody(req)
+      const branches = await git.listBranches(room)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(branches))
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/branch/create') {
+    try {
+      const { room, name } = await readJsonBody(req)
+      const branches = await git.createBranch(room, name)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(branches))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/branch/switch') {
+    try {
+      const { room, name } = await readJsonBody(req)
+      const branches = await git.switchBranch(room, name)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(branches))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/push') {
+    try {
+      const { room, remoteUrl, token, branch } = await readJsonBody(req)
+      await git.push(room, remoteUrl, token, branch)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/pull') {
+    try {
+      const { room, remoteUrl, token, branch } = await readJsonBody(req)
+      const result = await git.pull(room, remoteUrl, token, branch)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/pr/list') {
+    try {
+      const { remoteUrl, token } = await readJsonBody(req)
+      const pullRequests = await githubApi.listPullRequests(remoteUrl, token)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ pullRequests }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/pr/create') {
+    try {
+      const { remoteUrl, token, title, head, base, body } = await readJsonBody(req)
+      const pr = await githubApi.createPullRequest(remoteUrl, token, { title, head, base, body })
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(pr))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
     return
   }
 

@@ -588,3 +588,90 @@ test("a signed-in account's username is used as the collaborator identity", asyn
   await contextA.close()
   await contextB.close()
 })
+
+test('the Source Control panel shows an untracked file and its diff', async ({ page }) => {
+  const room = uniqueRoom('sourcecontrol')
+  await openRoom(page, room)
+
+  await typeCode(page, 'console.log("first version")')
+  await page.waitForTimeout(500) // let the edit flush before the server syncs to disk
+
+  await page.getByRole('button', { name: 'Source Control' }).click()
+  await expect(page.locator('.source-control-panel')).toBeVisible()
+  await expect(page.locator('.sc-file-item')).toContainText('main.js')
+  await expect(page.locator('.sc-file-kind-untracked')).toBeVisible()
+
+  await page.locator('.sc-file-item').click()
+  await expect(page.locator('.sc-diff')).toContainText('first version')
+
+  await page.getByRole('button', { name: 'History' }).click()
+  await expect(page.locator('.sc-empty')).toContainText('No commits yet')
+})
+
+test('committing clears the changes list and records history', async ({ page }) => {
+  const room = uniqueRoom('sccommit')
+  await openRoom(page, room)
+
+  await typeCode(page, 'console.log("v1")')
+  await page.waitForTimeout(500)
+
+  await page.getByRole('button', { name: 'Source Control' }).click()
+  await expect(page.locator('.sc-file-item')).toContainText('main.js')
+
+  await page.locator('.sc-commit-box .text-input').fill('initial commit')
+  await page.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(page.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  await page.getByRole('button', { name: 'History' }).click()
+  await expect(page.locator('.sc-commit-item')).toContainText('initial commit')
+})
+
+test('creating a branch, committing on it, and switching back updates the live content for everyone', async ({
+  browser,
+}) => {
+  const room = uniqueRoom('scbranch')
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await openRoom(pageA, room)
+  await openRoom(pageB, room)
+
+  await typeCode(pageA, 'console.log("v1 on master")')
+  await pageA.waitForTimeout(500)
+
+  await pageA.getByRole('button', { name: 'Source Control' }).click()
+  await pageA.locator('.sc-commit-box .text-input').fill('v1')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  await pageA.locator('.sc-branch-input').fill('feature-a')
+  await pageA.locator('.sc-branch-bar button', { hasText: 'Create' }).click()
+  await expect(pageA.locator('.sc-branch-select')).toHaveValue('feature-a', { timeout: 10000 })
+
+  await pageA.locator('.cm-content').click()
+  await pageA.keyboard.press('Control+A')
+  await pageA.keyboard.type('console.log("v2 on feature-a")')
+  await pageA.waitForTimeout(500)
+  await pageA.locator('.sc-commit-box .text-input').fill('v2')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  // B (never having touched Source Control) should see feature-a's content
+  // live, since a room is one shared document -- no per-user branch view.
+  await expect(pageB.locator('.cm-content')).toContainText('v2 on feature-a', { timeout: 10000 })
+
+  pageA.once('dialog', (dialog) => dialog.accept())
+  await pageA.locator('.sc-branch-select').selectOption('master')
+  await expect(pageA.locator('.sc-branch-select')).toHaveValue('master', { timeout: 10000 })
+
+  // Switching back to master on A should revert content for BOTH clients.
+  await expect(pageA.locator('.cm-content')).toContainText('v1 on master', { timeout: 10000 })
+  await expect(pageA.locator('.cm-content')).not.toContainText('feature-a')
+  await expect(pageB.locator('.cm-content')).toContainText('v1 on master', { timeout: 10000 })
+  await expect(pageB.locator('.cm-content')).not.toContainText('feature-a')
+
+  await contextA.close()
+  await contextB.close()
+})

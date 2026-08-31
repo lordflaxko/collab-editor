@@ -8,6 +8,7 @@ import JoinLeaveToasts from './JoinLeaveToasts'
 import RunPanel from './RunPanel'
 import ChatPanel from './ChatPanel'
 import CommentPopover from './CommentPopover'
+import SourceControlPanel from './SourceControlPanel'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -56,6 +57,7 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
   const [formatError, setFormatError] = useState<string | null>(null)
   const [formatting, setFormatting] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [sourceControlOpen, setSourceControlOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
@@ -230,6 +232,13 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
             <button type="button" className="btn btn-small" onClick={() => setChatOpen((v) => !v)}>
               Chat
             </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => setSourceControlOpen((v) => !v)}
+            >
+              Source Control
+            </button>
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -257,6 +266,9 @@ function Workspace({ room, passphrase, user, isDark, onAuthError, onConnected }:
           participants={participants}
           onClose={() => setChatOpen(false)}
         />
+      )}
+      {sourceControlOpen && (
+        <SourceControlPanel room={room} user={user} onClose={() => setSourceControlOpen(false)} />
       )}
       {openThread?.mode === 'new' && (
         <CommentPopover
