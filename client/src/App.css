@@ -444,6 +444,17 @@
   filter: brightness(1.08);
 }
 
+.btn-stop {
+  border-color: #e0554f;
+  background: #e0554f;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-stop:hover {
+  filter: brightness(1.08);
+}
+
 .run-stdin {
   flex: 1;
 }
@@ -470,6 +481,11 @@
 
 .run-output-stderr {
   color: #e0554f;
+}
+
+.run-output-stdin {
+  color: var(--accent);
+  font-style: italic;
 }
 
 .run-output-error {

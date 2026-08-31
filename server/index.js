@@ -8,7 +8,7 @@ process.env.YPERSISTENCE = process.env.YPERSISTENCE || path.join(__dirname, 'dat
 
 const { setupWSConnection } = require('y-websocket/bin/utils')
 const { authorize } = require('./auth')
-const { runCode } = require('./run')
+const { handleRunConnection } = require('./runWs')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
 const notifications = require('./notifications')
@@ -42,19 +42,6 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     res.end()
-    return
-  }
-
-  if (req.method === 'POST' && req.url === '/run') {
-    try {
-      const { languageId, code, stdin } = await readJsonBody(req)
-      const result = await runCode(languageId, code, stdin)
-      res.writeHead(result.error ? 400 : 200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(result))
-    } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: String(err) }))
-    }
     return
   }
 
@@ -304,6 +291,12 @@ const wss = new WebSocketServer({ server })
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://localhost')
+
+  if (url.pathname === '/__run') {
+    handleRunConnection(ws)
+    return
+  }
+
   const docName = url.pathname.slice(1)
   const passphrase = url.searchParams.get('passphrase') ?? ''
 

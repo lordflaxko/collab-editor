@@ -319,6 +319,45 @@ test('the Run button executes code against the sandbox and shows stdout', async 
   await page.getByRole('button', { name: /Run/ }).click()
 
   await expect(page.locator('.run-output-stdout')).toContainText('4', { timeout: 20000 })
+  await expect(page.locator('.run-output-exit')).toContainText('Exit code: 0')
+  await expect(page.locator('.run-output-exit')).toContainText('ms')
+})
+
+test('stdin can be sent interactively while a program is waiting for it', async ({ page }) => {
+  const room = uniqueRoom('interactive')
+  await openRoom(page, room)
+
+  await page.locator('.language-picker').selectOption('python')
+  await typeCode(page, 'name = input("name? ")\nprint("hello " + name)')
+
+  await page.getByRole('button', { name: '▶ Run' }).click()
+  await expect(page.locator('.run-output')).toContainText('name?', { timeout: 15000 })
+
+  await page.locator('.run-stdin').fill('Playwright')
+  await page.locator('.run-stdin').press('Enter')
+
+  await expect(page.locator('.run-output')).toContainText('hello Playwright', { timeout: 10000 })
+  await expect(page.locator('.run-output-exit')).toContainText('Exit code: 0')
+})
+
+test('Stop halts an in-flight run and the Run button works again afterward', async ({ page }) => {
+  const room = uniqueRoom('stoprun')
+  await openRoom(page, room)
+
+  await page.locator('.language-picker').selectOption('python')
+  await typeCode(page, 'import time\nwhile True:\n    print("looping", flush=True)\n    time.sleep(0.2)')
+
+  await page.getByRole('button', { name: '▶ Run' }).click()
+  await expect(page.locator('.run-output')).toContainText('looping', { timeout: 15000 })
+
+  await page.getByRole('button', { name: '■ Stop' }).click()
+  await expect(page.locator('.run-output-exit')).toContainText('Stopped')
+
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.type('print("restarted")')
+  await page.getByRole('button', { name: /Run/ }).click()
+  await expect(page.locator('.run-output')).toContainText('restarted', { timeout: 15000 })
 })
 
 test('a chat message and its reply sync to another client', async ({ browser }) => {
