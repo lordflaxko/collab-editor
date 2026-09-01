@@ -536,6 +536,57 @@
   justify-content: space-between;
 }
 
+.explain-popover {
+  width: 320px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.breakpoint-popover {
+  width: 300px;
+}
+
+.cm-breakpoint-gutter {
+  width: 0.9rem;
+}
+
+.cm-breakpoint-marker {
+  cursor: pointer;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: 0.35rem auto 0;
+  border-radius: 50%;
+  background: #e0554f;
+}
+
+.debug-hits {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.debug-hits-label {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.debug-hit-item {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+  font-family: var(--mono);
+}
+
+.debug-hit-index {
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.debug-hit-line {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
 .comment-popover-actions {
   display: flex;
   gap: 0.4rem;
@@ -1156,6 +1207,95 @@
 .review-action-buttons {
   display: flex;
   gap: 0.4rem;
+}
+
+/* API test panel */
+
+.api-test-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.api-test-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.api-test-request-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.api-method-select {
+  flex-shrink: 0;
+}
+
+.api-url-input {
+  flex: 1;
+}
+
+.api-test-headers-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.api-header-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.api-test-body-input {
+  min-height: 70px;
+}
+
+.api-response {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.api-response-status {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.api-status-ok {
+  color: #3fb950;
+}
+
+.api-status-error {
+  color: #e0554f;
+}
+
+.api-response-headers {
+  font-size: 0.78rem;
+}
+
+.api-response-header-row {
+  font-family: var(--mono);
+  padding: 0.1rem 0;
+  word-break: break-all;
+}
+
+.api-response-body {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .sc-commit-message {

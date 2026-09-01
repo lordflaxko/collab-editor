@@ -13,6 +13,8 @@ import type { WebsocketProvider } from 'y-websocket'
 import type { LanguageConfig } from './languages'
 import type { CommentThreadData } from './comments'
 import { commentGutter, commentThreadsField, setCommentThreads } from './commentGutter'
+import { breakpointGutter, breakpointsField, setBreakpoints, type LineBreakpoint } from './breakpointGutter'
+import type { Breakpoint } from './breakpoints'
 
 export interface Coords {
   top: number
@@ -55,6 +57,8 @@ interface CodeEditorProps {
   readOnly: boolean
   threads: CommentThreadData[]
   onOpenThread: (threadId: string, coords: Coords) => void
+  breakpoints: Breakpoint[]
+  onBreakpointGutterClick: (lineFrom: number, existing: LineBreakpoint | undefined, coords: Coords) => void
   onReady?: (handle: EditorHandle) => void
 }
 
@@ -66,6 +70,8 @@ function CodeEditor({
   readOnly,
   threads,
   onOpenThread,
+  breakpoints,
+  onBreakpointGutterClick,
   onReady,
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -88,6 +94,8 @@ function CodeEditor({
       lintGutter(),
       commentThreadsField.init(() => threads),
       commentGutter(ytext, onOpenThread),
+      breakpointsField.init(() => breakpoints),
+      breakpointGutter(ytext, onBreakpointGutterClick),
       EditorState.readOnly.of(readOnly),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       EditorView.lineWrapping,
@@ -138,15 +146,19 @@ function CodeEditor({
       view.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytext, provider, language, isDark, readOnly, onOpenThread, onReady])
+  }, [ytext, provider, language, isDark, readOnly, onOpenThread, onBreakpointGutterClick, onReady])
 
-  // Thread data changes far more often than the editor's identity (file,
-  // language, theme) should force a full teardown/rebuild, so it's pushed
-  // into the already-running view via a dispatch instead of being an effect
-  // dependency above.
+  // Thread/breakpoint data changes far more often than the editor's identity
+  // (file, language, theme) should force a full teardown/rebuild, so it's
+  // pushed into the already-running view via a dispatch instead of being an
+  // effect dependency above.
   useEffect(() => {
     viewRef.current?.dispatch({ effects: setCommentThreads.of(threads) })
   }, [threads])
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: setBreakpoints.of(breakpoints) })
+  }, [breakpoints])
 
   return <div className="code-editor" ref={containerRef} />
 }

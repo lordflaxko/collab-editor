@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { createProject, joinViaInvite, myProjects, type Project } from './projects'
+import { PROJECT_TEMPLATES } from './templates'
 
 interface DashboardProps {
   token: string
@@ -19,6 +20,7 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [visibility, setVisibility] = useState<'public' | 'private'>('private')
+  const [templateId, setTemplateId] = useState('blank')
   const [creating, setCreating] = useState(false)
   const [inviteInput, setInviteInput] = useState('')
   const [joining, setJoining] = useState(false)
@@ -40,7 +42,7 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
     if (!name.trim()) return
     setCreating(true)
     setError(null)
-    createProject(token, name.trim(), visibility)
+    createProject(token, name.trim(), visibility, templateId)
       .then(({ project }) => onOpenProject(project.id))
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not create project'))
       .finally(() => setCreating(false))
@@ -91,9 +93,24 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Project name"
           />
-          <select value={visibility} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}>
+          <select
+            className="visibility-select"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+          >
             <option value="private">Private</option>
             <option value="public">Public</option>
+          </select>
+          <select
+            className="template-select"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+          >
+            {PROJECT_TEMPLATES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
           </select>
           <button type="submit" className="btn" disabled={creating || !name.trim()}>
             {creating ? 'Creating…' : 'Create'}

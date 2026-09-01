@@ -15,15 +15,40 @@ function truncate(text) {
     : text
 }
 
+function requireApiKey() {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    throw new Error('The AI assistant is not configured (ANTHROPIC_API_KEY is not set on the server)')
+  }
+  return apiKey
+}
+
+// Shared by askAssistant (persisted room chat) and explainCode (a private,
+// one-shot request) -- both just need "send this system prompt and message
+// history, get the reply text back" from the same underlying API.
+async function callAnthropic(apiKey, systemPrompt, messages) {
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: systemPrompt, messages }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error?.message || `AI request failed (${response.status})`)
+  }
+  return (data.content ?? []).map((block) => block.text ?? '').join('')
+}
+
 // Lives in the project's own Y.Doc (same pattern as chat/comments/activity),
 // so everyone in the room sees the same assistant thread and can build on
 // each other's questions, rather than each person getting a private,
 // disconnected conversation.
 async function askAssistant(room, question, actor, activeFileId) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    throw new Error('The AI assistant is not configured (ANTHROPIC_API_KEY is not set on the server)')
-  }
+  const apiKey = requireApiKey()
   if (!question || !question.trim()) throw new Error('A question is required')
 
   const ydoc = await getLoadedLiveDoc(room)
@@ -60,20 +85,7 @@ async function askAssistant(room, question, actor, activeFileId) {
 
   let text
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: systemPrompt, messages: history }),
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(data.error?.message || `AI request failed (${response.status})`)
-    }
-    text = (data.content ?? []).map((block) => block.text ?? '').join('')
+    text = await callAnthropic(apiKey, systemPrompt, history)
   } catch (err) {
     chat.push([
       {
@@ -94,4 +106,23 @@ async function askAssistant(room, question, actor, activeFileId) {
   return text
 }
 
-module.exports = { askAssistant }
+// Unlike askAssistant, this is deliberately private and ephemeral -- it
+// doesn't touch the project's shared aiChat array, so asking for an
+// explanation doesn't post anything into the room's persisted AI thread for
+// everyone else to see. Each call is a one-shot request with no memory of
+// previous ones.
+async function explainCode(code, languageId) {
+  const apiKey = requireApiKey()
+  if (!code || !code.trim()) throw new Error('There is no code to explain')
+
+  const systemPrompt =
+    'You are a coding assistant embedded in a collaborative code editor. ' +
+    'Explain the code the user gives you clearly and concisely, in a few sentences or a short list. ' +
+    "Don't rewrite or suggest changes to it -- just explain what it does."
+
+  const message = `Explain this ${languageId} code:\n\n\`\`\`${languageId}\n${truncate(code.trim())}\n\`\`\``
+
+  return callAnthropic(apiKey, systemPrompt, [{ role: 'user', content: message }])
+}
+
+module.exports = { askAssistant, explainCode }

@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const accounts = require('./accounts')
 const { getLoadedLiveDoc } = require('./yjsDoc')
 const { logActivity } = require('./activityLog')
+const { TEMPLATES } = require('./templates')
 
 const PROJECTS_PATH = path.join(__dirname, 'projects.json')
 const INVITES_PATH = path.join(__dirname, 'invites.json')
@@ -73,7 +74,7 @@ function requireMinRole(token, projectId, minRole) {
   return { project, role, username: accounts.getSessionUser(token) }
 }
 
-// Seeds the new project's one starting file directly in its Y.Doc, as a
+// Seeds the new project's starting file(s) directly in its Y.Doc, as a
 // single atomic server-side action at creation time -- rather than having
 // each connecting client reactively check "is the file list empty?" and
 // create one if so, which is exactly the kind of check-then-act race a CRDT
@@ -81,19 +82,31 @@ function requireMinRole(token, projectId, minRole) {
 // close to the same time could both see zero files and both create their
 // own "main.js", ending up with two separate files (and two people editing
 // content neither of them can see the other's edits on).
-async function seedDefaultFile(projectId) {
+//
+// A known templateId seeds that template's file set (e.g. a FizzBuzz
+// implementation plus its test file for the JavaScript template); anything
+// else (including no templateId at all, i.e. "Blank") falls back to the
+// single empty main.js this app has always started new projects with.
+async function seedDefaultFile(projectId, templateId) {
   const ydoc = await getLoadedLiveDoc(projectId)
   const filesMap = ydoc.getMap('files')
   const order = ydoc.getArray('fileOrder')
   if (order.length > 0) return
-  const id = crypto.randomUUID().slice(0, 8)
+  const template = templateId ? TEMPLATES[templateId] : null
+  const files = template ? template.files : [{ name: 'main.js', languageId: 'javascript', content: '' }]
   ydoc.transact(() => {
-    filesMap.set(id, { name: 'main.js', languageId: 'javascript' })
-    order.push([id])
+    for (const file of files) {
+      const id = crypto.randomUUID().slice(0, 8)
+      filesMap.set(id, { name: file.name, languageId: file.languageId })
+      order.push([id])
+      if (file.content) {
+        ydoc.getText(`content:${id}`).insert(0, file.content)
+      }
+    }
   })
 }
 
-async function createProject(token, name, visibility) {
+async function createProject(token, name, visibility, templateId) {
   const username = requireUser(token)
   if (!name || !name.trim()) throw new Error('Project name is required')
   if (visibility !== 'public' && visibility !== 'private') {
@@ -111,7 +124,7 @@ async function createProject(token, name, visibility) {
   }
   projects[id] = project
   saveProjects(projects)
-  await seedDefaultFile(id)
+  await seedDefaultFile(id, templateId)
   return project
 }
 

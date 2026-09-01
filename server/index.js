@@ -132,8 +132,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/projects/create') {
     try {
-      const { token, name, visibility } = await readJsonBody(req)
-      const project = await projects.createProject(token, name, visibility)
+      const { token, name, visibility, templateId } = await readJsonBody(req)
+      const project = await projects.createProject(token, name, visibility, templateId)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -478,6 +478,20 @@ const server = http.createServer(async (req, res) => {
       const reply = await aiAssistant.askAssistant(project.id, question, actor, activeFileId)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ reply, role }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/ai/explain') {
+    try {
+      const { room, sessionToken, code, languageId } = await readJsonBody(req)
+      projects.getProjectForRequester(sessionToken, room)
+      const explanation = await aiAssistant.explainCode(code, languageId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ explanation }))
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: String(err.message ?? err) }))

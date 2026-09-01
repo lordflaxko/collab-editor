@@ -28,9 +28,15 @@ async function logIn(page: Page, username: string) {
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
 }
 
-async function createProject(page: Page, name: string, visibility: 'public' | 'private' = 'private') {
+async function createProject(
+  page: Page,
+  name: string,
+  visibility: 'public' | 'private' = 'private',
+  templateId?: string,
+) {
   await page.getByPlaceholder('Project name').fill(name)
-  await page.locator('.dashboard-form select').selectOption(visibility)
+  await page.locator('.visibility-select').selectOption(visibility)
+  if (templateId) await page.locator('.template-select').selectOption(templateId)
   await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText('Connected', { exact: true })).toBeVisible()
   await page.waitForSelector('.cm-content')
@@ -38,10 +44,15 @@ async function createProject(page: Page, name: string, visibility: 'public' | 'p
 
 // Signs up a fresh owner and creates a fresh project in one step -- the most
 // common setup below, replacing the old passphrase-era openRoom() helper.
-async function openNewProject(page: Page, label: string, visibility: 'public' | 'private' = 'private') {
+async function openNewProject(
+  page: Page,
+  label: string,
+  visibility: 'public' | 'private' = 'private',
+  templateId?: string,
+) {
   const username = uniqueUsername(label)
   await signUp(page, username)
-  await createProject(page, `Project ${label}`, visibility)
+  await createProject(page, `Project ${label}`, visibility, templateId)
   return username
 }
 
@@ -333,6 +344,25 @@ test('creating a file adds it to the tree, and each file keeps separate content'
   await page.locator('.file-tree-item', { hasText: 'main.js' }).click()
   await expect(page.locator('.cm-content')).toContainText('inMain')
   await expect(page.locator('.cm-content')).not.toContainText('helper')
+})
+
+test('creating a project from the JavaScript template seeds a runnable file and a passing test', async ({
+  page,
+}) => {
+  await openNewProject(page, 'template', 'private', 'javascript')
+
+  await expect(page.locator('.file-tree-item')).toHaveCount(2)
+  await expect(page.locator('.file-tree-item', { hasText: 'main.js' })).toBeVisible()
+  await expect(page.locator('.file-tree-item', { hasText: 'main.test.js' })).toBeVisible()
+  await expect(page.locator('.cm-content')).toContainText('fizzbuzz')
+
+  await page.getByRole('button', { name: /Run/ }).click()
+  await expect(page.locator('.run-output-stdout')).toContainText('FizzBuzz', { timeout: 20000 })
+
+  await page.getByRole('button', { name: 'Tests' }).click()
+  await page.getByRole('button', { name: 'Run Tests' }).click()
+  await expect(page.locator('.test-item-pass')).toHaveCount(4, { timeout: 15000 })
+  await expect(page.locator('.test-item-fail')).toHaveCount(0)
 })
 
 test("the language picker overrides a file's language independent of its extension", async ({ page }) => {
@@ -846,6 +876,61 @@ test('restoring an earlier commit updates the live content for everyone and adds
 
   await contextA.close()
   await contextB.close()
+})
+
+test('the Explain popover surfaces a clear error when no API key is configured, without touching the shared AI chat', async ({
+  page,
+}) => {
+  await openNewProject(page, 'explain')
+  await typeCode(page, 'function add(a, b) { return a + b }')
+
+  await page.getByRole('button', { name: 'Explain', exact: true }).click()
+  await expect(page.locator('.explain-popover .format-error')).toContainText('not configured', {
+    timeout: 10000,
+  })
+
+  await page.getByRole('button', { name: 'AI Assistant' }).click()
+  await expect(page.locator('.ai-chat-panel .sc-empty')).toBeVisible()
+})
+
+test('the API Test panel sends a real request from the browser and shows the response', async ({ page }) => {
+  await openNewProject(page, 'apitest')
+
+  await page.getByRole('button', { name: 'API Test' }).click()
+  await page.locator('.api-url-input').fill('http://localhost:1234/')
+  await page.getByRole('button', { name: 'Send' }).click()
+
+  await expect(page.locator('.api-response-status')).toContainText('200', { timeout: 10000 })
+  await expect(page.locator('.api-response-body')).toContainText('Yjs websocket server is running')
+})
+
+test('setting a breakpoint injects a logpoint and shows captured watch values per hit', async ({ page }) => {
+  await openNewProject(page, 'breakpoint')
+
+  // insertText (a single bulk input event) rather than the usual per-key
+  // typeCode helper, so CodeMirror's bracket auto-closing -- which only
+  // triggers on a single typed "{" keystroke, not a multi-line paste-like
+  // insert -- doesn't leave a stray extra "}" behind.
+  await page.locator('.cm-content').click()
+  await page.keyboard.insertText(
+    'let total = 0\nfor (let i = 1; i <= 3; i++) {\n  total += i\n}\nconsole.log(total)',
+  )
+
+  // Click the breakpoint gutter on the loop body's line (line 3).
+  await page.locator('.cm-breakpoint-gutter .cm-gutterElement').nth(2).click()
+  await expect(page.locator('.breakpoint-popover')).toBeVisible()
+  await page.locator('.breakpoint-popover input').fill('i, total')
+  await page.getByRole('button', { name: 'Set breakpoint' }).click()
+  await expect(page.locator('.cm-breakpoint-marker')).toBeVisible()
+
+  await page.getByRole('button', { name: /Run/ }).click()
+
+  await expect(page.locator('.debug-hit-item')).toHaveCount(3, { timeout: 15000 })
+  await expect(page.locator('.debug-hit-item').nth(0)).toContainText('i = 1')
+  await expect(page.locator('.debug-hit-item').nth(0)).toContainText('total = 1')
+  await expect(page.locator('.debug-hit-item').nth(2)).toContainText('i = 3')
+  await expect(page.locator('.debug-hit-item').nth(2)).toContainText('total = 6')
+  await expect(page.locator('.run-output-stdout')).toContainText('6')
 })
 
 test('the Test panel runs Node built-in tests against another file and shows pass/fail results', async ({

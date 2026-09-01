@@ -13,6 +13,9 @@ import ActivityPanel from './ActivityPanel'
 import TestPanel from './TestPanel'
 import AIChatPanel from './AIChatPanel'
 import ReviewPanel from './ReviewPanel'
+import ExplainPopover from './ExplainPopover'
+import APITestPanel from './APITestPanel'
+import BreakpointPopover from './BreakpointPopover'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -22,7 +25,11 @@ import {
   replyToThread,
   setThreadResolved,
   toggleCommentReaction,
+  resolveAnchor,
 } from './comments'
+import { useBreakpoints } from './breakpoints'
+import type { LineBreakpoint } from './breakpointGutter'
+import type { ResolvedBreakpoint } from './logpoints'
 import { usePresence } from './usePresence'
 import { extractMentions } from './mentions'
 import { notifyMention } from './notifications'
@@ -72,7 +79,15 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [aiPrefill, setAiPrefill] = useState('')
   const [aiPrefillKey, setAiPrefillKey] = useState(0)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [apiTestOpen, setApiTestOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
+  const [explainRequest, setExplainRequest] = useState<{ coords: Coords; code: string } | null>(null)
+  const { getForFile: getBreakpointsForFile, setBreakpoint, removeBreakpoint } = useBreakpoints()
+  const [breakpointPopover, setBreakpointPopover] = useState<{
+    coords: Coords
+    lineFrom: number
+    existing: LineBreakpoint | undefined
+  } | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
 
@@ -139,7 +154,58 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   // dangle once the active file changes.
   useEffect(() => {
     setOpenThread(null)
+    setExplainRequest(null)
+    setBreakpointPopover(null)
   }, [activeId])
+
+  const fileBreakpoints = activeId ? getBreakpointsForFile(activeId) : []
+
+  // Recomputed on every render rather than memoized: it's just counting
+  // newlines up to each breakpoint's resolved position, cheap for the
+  // handful of breakpoints a file will realistically have, and guarantees
+  // the line numbers Run injects logpoints at are always current -- not
+  // stale from before someone's last edit.
+  const resolvedBreakpoints: ResolvedBreakpoint[] = (() => {
+    if (!ytext) return []
+    const text = ytext.toString()
+    const resolved = fileBreakpoints
+      .map((bp) => {
+        const index = resolveAnchor(ytext, bp.anchor)
+        if (index == null) return null
+        let lineNumber = 1
+        for (let i = 0; i < index && i < text.length; i++) {
+          if (text[i] === '\n') lineNumber++
+        }
+        return { id: bp.id, lineNumber, expressions: bp.expressions }
+      })
+      .filter((b): b is ResolvedBreakpoint => b !== null)
+    resolved.sort((a, b) => a.lineNumber - b.lineNumber)
+    return resolved
+  })()
+
+  const handleBreakpointGutterClick = useCallback(
+    (lineFrom: number, existing: LineBreakpoint | undefined, coords: Coords) => {
+      setBreakpointPopover({ coords, lineFrom, existing })
+    },
+    [],
+  )
+
+  function handleSaveBreakpoint(expressions: string[]) {
+    if (!activeId || !ytext || !breakpointPopover) return
+    const id = breakpointPopover.existing?.breakpointId ?? crypto.randomUUID()
+    const anchor = breakpointPopover.existing
+      ? (fileBreakpoints.find((b) => b.id === id)?.anchor ?? null)
+      : Y.relativePositionToJSON(
+          Y.createRelativePositionFromTypeIndex(ytext, breakpointPopover.lineFrom),
+        )
+    if (anchor === null) return
+    setBreakpoint(activeId, id, anchor, expressions)
+  }
+
+  function handleRemoveBreakpoint() {
+    if (!activeId || !breakpointPopover?.existing) return
+    removeBreakpoint(activeId, breakpointPopover.existing.breakpointId)
+  }
 
   const handleOpenThread = useCallback((threadId: string, coords: Coords) => {
     setOpenThread({ mode: 'view', threadId, coords })
@@ -151,6 +217,16 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     const coords = editorHandle.getCoordsForPos(from)
     if (!coords) return
     setOpenThread({ mode: 'new', from, to, coords })
+  }
+
+  function handleExplain() {
+    if (!editorHandle || !ytext) return
+    const { from, to } = editorHandle.getSelection()
+    const coords = editorHandle.getCoordsForPos(from)
+    if (!coords) return
+    const full = ytext.toString()
+    const code = from === to ? full : full.slice(from, to)
+    setExplainRequest({ coords, code })
   }
 
   function notifyMentionsIn(text: string) {
@@ -266,6 +342,14 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               Comment
             </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={handleExplain}
+              disabled={!ytext}
+            >
+              Explain
+            </button>
             <button type="button" className="btn btn-small" onClick={() => setChatOpen((v) => !v)}>
               Chat
             </button>
@@ -296,6 +380,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             <button type="button" className="btn btn-small" onClick={() => setReviewOpen((v) => !v)}>
               Review
             </button>
+            <button type="button" className="btn btn-small" onClick={() => setApiTestOpen((v) => !v)}>
+              API Test
+            </button>
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -309,12 +396,19 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             readOnly={!canEdit}
             threads={threads}
             onOpenThread={handleOpenThread}
+            breakpoints={fileBreakpoints}
+            onBreakpointGutterClick={handleBreakpointGutterClick}
             onReady={setEditorHandle}
           />
         ) : (
           <div className="code-editor-empty">No file open</div>
         )}
-        <RunPanel language={activeLanguage} getCode={getCode} onDebugWithAI={debugWithAI} />
+        <RunPanel
+          language={activeLanguage}
+          getCode={getCode}
+          breakpoints={resolvedBreakpoints}
+          onDebugWithAI={debugWithAI}
+        />
       </div>
       {chatOpen && (
         <ChatPanel
@@ -355,6 +449,27 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           user={user}
           canEdit={canEdit}
           onClose={() => setReviewOpen(false)}
+        />
+      )}
+      {apiTestOpen && <APITestPanel onClose={() => setApiTestOpen(false)} />}
+      {explainRequest && (
+        <ExplainPopover
+          coords={explainRequest.coords}
+          code={explainRequest.code}
+          languageId={activeLanguage.id}
+          room={room}
+          sessionToken={token}
+          onClose={() => setExplainRequest(null)}
+        />
+      )}
+      {breakpointPopover && (
+        <BreakpointPopover
+          coords={breakpointPopover.coords}
+          initialExpressions={breakpointPopover.existing?.expressions ?? []}
+          isNew={!breakpointPopover.existing}
+          onSave={handleSaveBreakpoint}
+          onRemove={handleRemoveBreakpoint}
+          onClose={() => setBreakpointPopover(null)}
         />
       )}
       {openThread?.mode === 'new' && (

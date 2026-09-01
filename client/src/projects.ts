@@ -15,8 +15,9 @@ export function createProject(
   token: string,
   name: string,
   visibility: 'public' | 'private',
+  templateId?: string,
 ): Promise<{ project: Project }> {
-  return postJson('/projects/create', { token, name, visibility })
+  return postJson('/projects/create', { token, name, visibility, templateId })
 }
 
 export function myProjects(token: string): Promise<{ projects: Project[] }> {

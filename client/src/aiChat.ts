@@ -24,6 +24,15 @@ export function askAssistant(
   return postJson('/ai/ask', { room, question, sessionToken, activeFileId })
 }
 
+export function explainCode(
+  room: string,
+  code: string,
+  languageId: string,
+  sessionToken: string | null,
+): Promise<{ explanation: string }> {
+  return postJson('/ai/explain', { room, code, languageId, sessionToken })
+}
+
 export function useAiChat(ydoc: Y.Doc): AiChatEntry[] {
   const array = aiChatArrayFor(ydoc)
   const versionRef = useRef(0)
