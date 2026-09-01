@@ -217,6 +217,31 @@ async function _restoreVersion(room, hash, sessionToken) {
   return getLog(room)
 }
 
+// Backs the Review panel's "files changed" list -- a plain comparison of two
+// refs' committed history, so unlike the working-directory functions above
+// this needs no syncRoomToWorkingDir first.
+async function _reviewChangedFiles(room, baseBranch) {
+  const git = await ensureRepo(room)
+  let output
+  try {
+    output = await git.raw(['diff', '--name-status', baseBranch, 'HEAD'])
+  } catch {
+    throw new Error(`Could not compare against "${baseBranch}"`)
+  }
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [status, ...rest] = line.split('\t')
+      return { status, path: rest.join('\t') }
+    })
+}
+
+async function _reviewFileDiff(room, baseBranch, filePath) {
+  const git = await ensureRepo(room)
+  return git.raw(['diff', baseBranch, 'HEAD', '--', filePath])
+}
+
 // getLog/listBranches are called both directly by routes (where they need
 // the lock, like everything else here) and internally by the other locked
 // functions above (where taking the lock again would deadlock against
@@ -240,4 +265,8 @@ module.exports = {
     withRoomLock(room, () => _pull(room, remoteUrl, token, branch, sessionToken)),
   restoreVersion: (room, hash, sessionToken) =>
     withRoomLock(room, () => _restoreVersion(room, hash, sessionToken)),
+  reviewChangedFiles: (room, baseBranch) =>
+    withRoomLock(room, () => _reviewChangedFiles(room, baseBranch)),
+  reviewFileDiff: (room, baseBranch, filePath) =>
+    withRoomLock(room, () => _reviewFileDiff(room, baseBranch, filePath)),
 }

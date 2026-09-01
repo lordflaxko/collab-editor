@@ -12,6 +12,7 @@ import SourceControlPanel from './SourceControlPanel'
 import ActivityPanel from './ActivityPanel'
 import TestPanel from './TestPanel'
 import AIChatPanel from './AIChatPanel'
+import ReviewPanel from './ReviewPanel'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -68,6 +69,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [activityOpen, setActivityOpen] = useState(false)
   const [testsOpen, setTestsOpen] = useState(false)
   const [aiChatOpen, setAiChatOpen] = useState(false)
+  const [aiPrefill, setAiPrefill] = useState('')
+  const [aiPrefillKey, setAiPrefillKey] = useState(0)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
@@ -201,6 +205,12 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     deleteFile(id)
   }
 
+  function debugWithAI(question: string) {
+    setAiPrefill(question)
+    setAiPrefillKey((k) => k + 1)
+    setAiChatOpen(true)
+  }
+
   return (
     <div className="workspace">
       <JoinLeaveToasts awareness={provider.awareness} />
@@ -283,6 +293,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               AI Assistant
             </button>
+            <button type="button" className="btn btn-small" onClick={() => setReviewOpen((v) => !v)}>
+              Review
+            </button>
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -301,7 +314,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         ) : (
           <div className="code-editor-empty">No file open</div>
         )}
-        <RunPanel language={activeLanguage} getCode={getCode} />
+        <RunPanel language={activeLanguage} getCode={getCode} onDebugWithAI={debugWithAI} />
       </div>
       {chatOpen && (
         <ChatPanel
@@ -321,7 +334,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         />
       )}
       {activityOpen && <ActivityPanel ydoc={ydoc} onClose={() => setActivityOpen(false)} />}
-      {testsOpen && <TestPanel room={room} onClose={() => setTestsOpen(false)} />}
+      {testsOpen && (
+        <TestPanel room={room} onDebugWithAI={debugWithAI} onClose={() => setTestsOpen(false)} />
+      )}
       {aiChatOpen && (
         <AIChatPanel
           ydoc={ydoc}
@@ -329,6 +344,17 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           sessionToken={token}
           activeFileId={activeId}
           onClose={() => setAiChatOpen(false)}
+          prefill={aiPrefill}
+          prefillKey={aiPrefillKey}
+        />
+      )}
+      {reviewOpen && (
+        <ReviewPanel
+          ydoc={ydoc}
+          room={room}
+          user={user}
+          canEdit={canEdit}
+          onClose={() => setReviewOpen(false)}
         />
       )}
       {openThread?.mode === 'new' && (

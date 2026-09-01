@@ -57,6 +57,26 @@ export function restoreVersion(
   return postJson('/git/restore', { room, hash, sessionToken })
 }
 
+export interface ReviewChangedFile {
+  status: string
+  path: string
+}
+
+export function fetchReviewChangedFiles(
+  room: string,
+  baseBranch: string,
+): Promise<{ files: ReviewChangedFile[] }> {
+  return postJson('/git/review-diff', { room, baseBranch })
+}
+
+export function fetchReviewFileDiff(
+  room: string,
+  baseBranch: string,
+  path: string,
+): Promise<{ diff: string }> {
+  return postJson('/git/review-file-diff', { room, baseBranch, path })
+}
+
 export function fetchBranches(room: string): Promise<GitBranches> {
   return postJson('/git/branches', { room })
 }

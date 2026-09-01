@@ -21,6 +21,14 @@ function describe(entry: ActivityEntry): string {
       return 'auto-saved a checkpoint of uncommitted changes'
     case 'version-restored':
       return `restored the project to ${d.hash}`
+    case 'review-requested':
+      return `requested review of ${d.branch} against ${d.baseBranch}`
+    case 'review-approved':
+      return `approved ${d.branch}`
+    case 'review-changes-requested':
+      return `requested changes on ${d.branch}`
+    case 'review-closed':
+      return `closed the review on ${d.branch}`
     case 'branch-created':
       return `created branch ${d.name}`
     case 'branch-switched':

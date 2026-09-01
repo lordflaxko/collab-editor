@@ -15,11 +15,31 @@ function isTestFile(name) {
 // handful of TAP lines the UI actually renders out of that stream.
 function parseTapOutput(stdout) {
   const tests = []
-  for (const line of stdout.split('\n')) {
+  const lines = stdout.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const ok = line.match(/^ok (\d+)(?: - (.*))?$/)
     const notOk = line.match(/^not ok (\d+)(?: - (.*))?$/)
-    if (notOk) tests.push({ id: Number(notOk[1]), name: notOk[2]?.trim() || `test ${notOk[1]}`, passed: false })
-    else if (ok) tests.push({ id: Number(ok[1]), name: ok[2]?.trim() || `test ${ok[1]}`, passed: true })
+    if (notOk) {
+      // Node's default TAP reporter follows a failing test with an indented
+      // YAML diagnostic block (the assertion error and stack) before the
+      // next top-level line -- capturing it is what makes "Debug with AI"
+      // useful instead of just handing the model a bare test name.
+      const detailLines = []
+      let j = i + 1
+      while (j < lines.length && /^\s/.test(lines[j])) {
+        detailLines.push(lines[j])
+        j++
+      }
+      tests.push({
+        id: Number(notOk[1]),
+        name: notOk[2]?.trim() || `test ${notOk[1]}`,
+        passed: false,
+        detail: detailLines.join('\n').trim(),
+      })
+    } else if (ok) {
+      tests.push({ id: Number(ok[1]), name: ok[2]?.trim() || `test ${ok[1]}`, passed: true })
+    }
   }
   const passMatch = stdout.match(/^# pass (\d+)/m)
   const failMatch = stdout.match(/^# fail (\d+)/m)

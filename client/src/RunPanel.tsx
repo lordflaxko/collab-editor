@@ -17,9 +17,10 @@ type Status = 'idle' | 'running' | 'stopped' | 'done'
 interface RunPanelProps {
   language: LanguageConfig
   getCode: () => string
+  onDebugWithAI: (question: string) => void
 }
 
-function RunPanel({ language, getCode }: RunPanelProps) {
+function RunPanel({ language, getCode, onDebugWithAI }: RunPanelProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [output, setOutput] = useState<OutputSegment[]>([])
   const [exitInfo, setExitInfo] = useState<ExitInfo | null>(null)
@@ -90,6 +91,17 @@ function RunPanel({ language, getCode }: RunPanelProps) {
   }
 
   const running = status === 'running'
+  const stderrText = output
+    .filter((segment) => segment.stream === 'stderr')
+    .map((segment) => segment.text)
+    .join('')
+  const hasFailure = status === 'done' && (stderrText.trim() || (exitInfo && exitInfo.code !== 0))
+
+  function handleDebugWithAI() {
+    onDebugWithAI(
+      `My code failed when I ran it:\n\n\`\`\`\n${getCode()}\n\`\`\`\n\nError output:\n\`\`\`\n${stderrText.trim() || `(no stderr; exit code ${exitInfo?.code ?? 'unknown'})`}\n\`\`\`\n\nWhat's wrong and how do I fix it?`,
+    )
+  }
 
   return (
     <div className="run-panel">
@@ -127,6 +139,11 @@ function RunPanel({ language, getCode }: RunPanelProps) {
             <div className="run-output-exit">
               Exit code: {exitInfo.code ?? '—'}
               {exitInfo.signal && ` (${exitInfo.signal})`} · {exitInfo.wallTimeMs}ms
+              {hasFailure && (
+                <button type="button" className="btn btn-small run-debug-ai" onClick={handleDebugWithAI}>
+                  Debug with AI
+                </button>
+              )}
             </div>
           )}
           {status === 'stopped' && (

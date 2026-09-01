@@ -885,3 +885,62 @@ test('the AI Assistant panel surfaces a clear error when no API key is configure
 
   await expect(page.locator('.format-error')).toContainText('not configured', { timeout: 10000 })
 })
+
+test('requesting a review, viewing the diff against a base branch, and approving it works live for both users', async ({
+  browser,
+}) => {
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await openNewProject(pageA, 'review')
+  const bUsername = await inviteAndJoin(pageA, pageB, 'reviewb', 'editor')
+
+  await typeCode(pageA, 'console.log("base")')
+  await pageA.waitForTimeout(500)
+  await pageA.getByRole('button', { name: 'Source Control' }).click()
+  await pageA.locator('.sc-commit-box .text-input').fill('base commit')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  await pageA.locator('.sc-branch-input').fill('feature')
+  await pageA.locator('.sc-branch-bar button', { hasText: 'Create' }).click()
+  await expect(pageA.locator('.sc-branch-select')).toHaveValue('feature', { timeout: 10000 })
+
+  await pageA.locator('.cm-content').click()
+  await pageA.keyboard.press('Control+A')
+  await pageA.keyboard.type('console.log("feature change")')
+  await pageA.waitForTimeout(500)
+  await pageA.locator('.sc-commit-box .text-input').fill('feature change')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+  await pageA.getByRole('button', { name: 'Close' }).click()
+
+  await pageA.getByRole('button', { name: 'Review' }).click()
+  await expect(pageA.locator('.review-panel option', { hasText: 'master' })).toHaveCount(1)
+  await pageA.locator('.review-panel select').selectOption('master')
+  await pageA.getByRole('button', { name: 'Request Review' }).click()
+  await expect(pageA.locator('.review-status')).toContainText('Awaiting review')
+
+  // B (never having done anything but join) sees the same review live, since
+  // it's shared project state, not per-user.
+  await pageB.getByRole('button', { name: 'Review' }).click()
+  await expect(pageB.locator('.review-meta')).toContainText('feature')
+  await expect(pageB.locator('.review-meta')).toContainText('master')
+
+  await pageB.locator('.sc-file-item').first().click()
+  await expect(pageB.locator('.sc-diff')).toContainText('feature change')
+
+  await pageB.getByRole('button', { name: 'Approve' }).click()
+  await expect(pageB.locator('.review-status')).toContainText('Approved')
+  await expect(pageA.locator('.review-status')).toContainText('Approved', { timeout: 10000 })
+  await expect(pageA.locator('.review-decision-item')).toContainText(bUsername)
+
+  await pageA.getByRole('button', { name: 'Close review' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No open review')
+  await expect(pageB.locator('.sc-empty')).toContainText('No open review', { timeout: 10000 })
+
+  await contextA.close()
+  await contextB.close()
+})

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type * as Y from 'yjs'
 import { useAiChat, askAssistant } from './aiChat'
 
@@ -8,17 +8,37 @@ interface AIChatPanelProps {
   sessionToken: string | null
   activeFileId: string | null
   onClose: () => void
+  // "Debug with AI" buttons elsewhere (Run/Test failures) fill this in to
+  // seed the draft with a ready-made question -- prefillKey changes on every
+  // request so clicking it again re-fills the box even with the same text.
+  prefill?: string
+  prefillKey?: number
 }
 
 function timeLabel(timestamp: number) {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-function AIChatPanel({ ydoc, room, sessionToken, activeFileId, onClose }: AIChatPanelProps) {
+function AIChatPanel({
+  ydoc,
+  room,
+  sessionToken,
+  activeFileId,
+  onClose,
+  prefill,
+  prefillKey,
+}: AIChatPanelProps) {
   const messages = useAiChat(ydoc)
   const [draft, setDraft] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (prefill !== undefined) setDraft(prefill)
+    // Only re-run when a new debug request comes in (prefillKey changes),
+    // not on every keystroke of the user's own edits to the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillKey])
 
   function submit() {
     const question = draft.trim()

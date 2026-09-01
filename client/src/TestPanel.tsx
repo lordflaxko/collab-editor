@@ -3,10 +3,11 @@ import { runTests, type TestFileResult } from './tests'
 
 interface TestPanelProps {
   room: string
+  onDebugWithAI: (question: string) => void
   onClose: () => void
 }
 
-function TestPanel({ room, onClose }: TestPanelProps) {
+function TestPanel({ room, onDebugWithAI, onClose }: TestPanelProps) {
   const [results, setResults] = useState<TestFileResult[] | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +58,20 @@ function TestPanel({ room, onClose }: TestPanelProps) {
             {fileResult.tests.map((t) => (
               <div key={t.id} className={`test-item ${t.passed ? 'test-item-pass' : 'test-item-fail'}`}>
                 <span className="test-item-icon">{t.passed ? '✓' : '✗'}</span>
-                {t.name}
+                <span className="test-item-name">{t.name}</span>
+                {!t.passed && (
+                  <button
+                    type="button"
+                    className="btn btn-small test-item-debug"
+                    onClick={() =>
+                      onDebugWithAI(
+                        `The test "${t.name}" in ${fileResult.file} is failing. Here's the failure detail:\n\n\`\`\`\n${t.detail || '(no detail captured)'}\n\`\`\`\n\nWhat's wrong and how do I fix it?`,
+                      )
+                    }
+                  >
+                    Debug with AI
+                  </button>
+                )}
               </div>
             ))}
             {fileResult.tests.length === 0 && fileResult.stderr && (

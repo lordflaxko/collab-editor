@@ -405,6 +405,32 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'POST' && req.url === '/git/review-diff') {
+    try {
+      const { room, baseBranch } = await readJsonBody(req)
+      const files = await git.reviewChangedFiles(room, baseBranch)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ files }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/review-file-diff') {
+    try {
+      const { room, baseBranch, path: filePath } = await readJsonBody(req)
+      const diff = await git.reviewFileDiff(room, baseBranch, filePath)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ diff }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
   if (req.method === 'POST' && req.url === '/git/pr/list') {
     try {
       const { remoteUrl, token } = await readJsonBody(req)

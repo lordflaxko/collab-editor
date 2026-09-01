@@ -4,6 +4,7 @@ export interface TestResult {
   id: number
   name: string
   passed: boolean
+  detail?: string
 }
 
 export interface TestFileResult {

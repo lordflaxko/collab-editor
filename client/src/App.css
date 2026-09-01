@@ -1005,7 +1005,17 @@
   font-size: 0.8rem;
   padding: 0.15rem 0;
   display: flex;
+  align-items: center;
   gap: 0.4rem;
+}
+
+.test-item-name {
+  flex: 1;
+}
+
+.test-item-debug,
+.run-debug-ai {
+  margin-left: 0.5rem;
 }
 
 .test-item-icon {
@@ -1050,6 +1060,102 @@
 
 .ai-message-error {
   color: #e0554f;
+}
+
+/* Review panel */
+
+.review-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.review-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.review-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-request-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.review-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.review-status {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.review-status-open {
+  background: rgba(210, 153, 34, 0.2);
+  color: #d29922;
+}
+
+.review-status-approved {
+  background: rgba(63, 185, 80, 0.2);
+  color: #3fb950;
+}
+
+.review-status-changes_requested {
+  background: rgba(224, 85, 79, 0.2);
+  color: #e0554f;
+}
+
+.review-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.review-decision-item {
+  font-size: 0.8rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.review-verdict-approved {
+  color: #3fb950;
+}
+
+.review-verdict-changes_requested {
+  color: #e0554f;
+}
+
+.review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+
+.review-action-buttons {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .sc-commit-message {
