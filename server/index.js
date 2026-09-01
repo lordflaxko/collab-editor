@@ -15,6 +15,8 @@ const notifications = require('./notifications')
 const projects = require('./projects')
 const git = require('./git')
 const githubApi = require('./githubApi')
+const testRunner = require('./testRunner')
+const aiAssistant = require('./aiAssistant')
 
 const port = process.env.PORT || 1234
 
@@ -422,6 +424,34 @@ const server = http.createServer(async (req, res) => {
       const pr = await githubApi.createPullRequest(remoteUrl, token, { title, head, base, body })
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(pr))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/tests/run') {
+    try {
+      const { room } = await readJsonBody(req)
+      const results = await testRunner.runTests(room)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ results }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/ai/ask') {
+    try {
+      const { room, question, sessionToken, activeFileId } = await readJsonBody(req)
+      const { project, role } = projects.getProjectForRequester(sessionToken, room)
+      const actor = accounts.getSessionUser(sessionToken) ?? 'Anonymous'
+      const reply = await aiAssistant.askAssistant(project.id, question, actor, activeFileId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ reply, role }))
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: String(err.message ?? err) }))

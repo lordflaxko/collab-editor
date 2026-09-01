@@ -10,6 +10,8 @@ import ChatPanel from './ChatPanel'
 import CommentPopover from './CommentPopover'
 import SourceControlPanel from './SourceControlPanel'
 import ActivityPanel from './ActivityPanel'
+import TestPanel from './TestPanel'
+import AIChatPanel from './AIChatPanel'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -64,6 +66,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [chatOpen, setChatOpen] = useState(false)
   const [sourceControlOpen, setSourceControlOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [testsOpen, setTestsOpen] = useState(false)
+  const [aiChatOpen, setAiChatOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
@@ -269,6 +273,16 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               Activity
             </button>
+            <button type="button" className="btn btn-small" onClick={() => setTestsOpen((v) => !v)}>
+              Tests
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => setAiChatOpen((v) => !v)}
+            >
+              AI Assistant
+            </button>
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -307,6 +321,16 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         />
       )}
       {activityOpen && <ActivityPanel ydoc={ydoc} onClose={() => setActivityOpen(false)} />}
+      {testsOpen && <TestPanel room={room} onClose={() => setTestsOpen(false)} />}
+      {aiChatOpen && (
+        <AIChatPanel
+          ydoc={ydoc}
+          room={room}
+          sessionToken={token}
+          activeFileId={activeId}
+          onClose={() => setAiChatOpen(false)}
+        />
+      )}
       {openThread?.mode === 'new' && (
         <CommentPopover
           mode="new"

@@ -970,6 +970,88 @@
   margin-bottom: 0.15rem;
 }
 
+/* Test panel */
+
+.test-panel {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.test-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.test-file-result {
+  margin-bottom: 0.75rem;
+}
+
+.test-file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.test-item {
+  font-size: 0.8rem;
+  padding: 0.15rem 0;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.test-item-icon {
+  width: 1rem;
+  text-align: center;
+}
+
+.test-item-pass {
+  color: #3fb950;
+}
+
+.test-item-fail {
+  color: #e0554f;
+}
+
+.test-stderr {
+  color: #e0554f;
+}
+
+.test-totals {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* AI chat panel */
+
+.ai-chat-panel {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.ai-message-text {
+  white-space: pre-wrap;
+}
+
+.ai-message-error {
+  color: #e0554f;
+}
+
 .sc-commit-message {
   font-weight: 600;
   margin-bottom: 0.15rem;

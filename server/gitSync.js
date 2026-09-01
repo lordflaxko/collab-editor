@@ -174,4 +174,10 @@ async function ensureRepo(room) {
   return git
 }
 
-module.exports = { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom, ensureRepo }
+module.exports = {
+  roomDir,
+  syncRoomToWorkingDir,
+  applyWorkingDirToRoom,
+  ensureRepo,
+  readRoomFiles,
+}

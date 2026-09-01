@@ -847,3 +847,41 @@ test('restoring an earlier commit updates the live content for everyone and adds
   await contextA.close()
   await contextB.close()
 })
+
+test('the Test panel runs Node built-in tests against another file and shows pass/fail results', async ({
+  page,
+}) => {
+  await openNewProject(page, 'testrunner')
+
+  await typeCode(page, 'function add(a, b) { return a + b }\nmodule.exports = { add }')
+
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('math.test.js')
+  await page.keyboard.press('Enter')
+
+  await typeCode(
+    page,
+    "const { test } = require('node:test')\n" +
+      "const assert = require('node:assert')\n" +
+      "const { add } = require('./main.js')\n" +
+      "test('adds numbers', () => { assert.strictEqual(add(2, 3), 5) })\n" +
+      "test('fails on purpose', () => { assert.strictEqual(add(2, 2), 5) })",
+  )
+  await page.waitForTimeout(500)
+
+  await page.getByRole('button', { name: 'Tests' }).click()
+  await page.getByRole('button', { name: 'Run Tests' }).click()
+
+  await expect(page.locator('.test-item-pass')).toContainText('adds numbers', { timeout: 15000 })
+  await expect(page.locator('.test-item-fail')).toContainText('fails on purpose')
+})
+
+test('the AI Assistant panel surfaces a clear error when no API key is configured', async ({ page }) => {
+  await openNewProject(page, 'aiassistant')
+
+  await page.getByRole('button', { name: 'AI Assistant' }).click()
+  await page.locator('.ai-chat-panel .text-input').fill('What does this file do?')
+  await page.locator('.ai-chat-panel button', { hasText: 'Ask' }).click()
+
+  await expect(page.locator('.format-error')).toContainText('not configured', { timeout: 10000 })
+})
