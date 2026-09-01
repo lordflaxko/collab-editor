@@ -16,6 +16,7 @@ import ReviewPanel from './ReviewPanel'
 import ExplainPopover from './ExplainPopover'
 import APITestPanel from './APITestPanel'
 import BreakpointPopover from './BreakpointPopover'
+import SaveTemplatePopover from './SaveTemplatePopover'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -88,6 +89,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     lineFrom: number
     existing: LineBreakpoint | undefined
   } | null>(null)
+  const [saveTemplateCoords, setSaveTemplateCoords] = useState<Coords | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
 
@@ -383,6 +385,18 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             <button type="button" className="btn btn-small" onClick={() => setApiTestOpen((v) => !v)}>
               API Test
             </button>
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setSaveTemplateCoords({ top: rect.top, left: rect.left, bottom: rect.bottom })
+                }}
+              >
+                Save as Template
+              </button>
+            )}
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -460,6 +474,14 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           room={room}
           sessionToken={token}
           onClose={() => setExplainRequest(null)}
+        />
+      )}
+      {saveTemplateCoords && (
+        <SaveTemplatePopover
+          coords={saveTemplateCoords}
+          room={room}
+          sessionToken={token}
+          onClose={() => setSaveTemplateCoords(null)}
         />
       )}
       {breakpointPopover && (

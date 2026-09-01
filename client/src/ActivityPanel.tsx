@@ -29,6 +29,8 @@ function describe(entry: ActivityEntry): string {
       return `requested changes on ${d.branch}`
     case 'review-closed':
       return `closed the review on ${d.branch}`
+    case 'template-saved':
+      return `saved this project as the template "${d.name}"`
     case 'branch-created':
       return `created branch ${d.name}`
     case 'branch-switched':

@@ -17,6 +17,9 @@ const git = require('./git')
 const githubApi = require('./githubApi')
 const testRunner = require('./testRunner')
 const aiAssistant = require('./aiAssistant')
+const customTemplates = require('./customTemplates')
+const { readRoomFiles } = require('./gitSync')
+const { logActivity } = require('./activityLog')
 
 const port = process.env.PORT || 1234
 
@@ -136,6 +139,49 @@ const server = http.createServer(async (req, res) => {
       const project = await projects.createProject(token, name, visibility, templateId)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/templates/list') {
+    try {
+      const templates = customTemplates.listCustomTemplates()
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ templates }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/templates/save') {
+    try {
+      const { sessionToken, projectId, name } = await readJsonBody(req)
+      const { username } = projects.requireMinRole(sessionToken, projectId, 'editor')
+      const files = await readRoomFiles(projectId)
+      const template = customTemplates.saveCustomTemplate(username, files, name)
+      await logActivity(projectId, 'template-saved', username, { name: template.name })
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ template }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/templates/delete') {
+    try {
+      const { sessionToken, templateId } = await readJsonBody(req)
+      const username = accounts.getSessionUser(sessionToken)
+      if (!username) throw new Error('You must be signed in')
+      customTemplates.removeCustomTemplate(username, templateId)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: String(err.message ?? err) }))

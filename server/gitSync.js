@@ -37,7 +37,7 @@ async function readRoomFiles(room) {
       const meta = filesMap.get(id)
       if (!meta) return []
       const content = ydoc.getText(`content:${id}`).toString()
-      return [{ name: meta.name, content }]
+      return [{ name: meta.name, languageId: meta.languageId, content }]
     })
 }
 

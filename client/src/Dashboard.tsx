@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { createProject, joinViaInvite, myProjects, type Project } from './projects'
 import { PROJECT_TEMPLATES } from './templates'
+import {
+  listCustomTemplates,
+  deleteCustomTemplate,
+  type CustomTemplateSummary,
+} from './customTemplates'
 
 interface DashboardProps {
   token: string
@@ -24,6 +29,7 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
   const [creating, setCreating] = useState(false)
   const [inviteInput, setInviteInput] = useState('')
   const [joining, setJoining] = useState(false)
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplateSummary[]>([])
 
   const refresh = useCallback(() => {
     setLoading(true)
@@ -33,9 +39,25 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
       .finally(() => setLoading(false))
   }, [token])
 
+  const refreshTemplates = useCallback(() => {
+    listCustomTemplates()
+      .then((data) => setCustomTemplates(data.templates))
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     refresh()
-  }, [refresh])
+    refreshTemplates()
+  }, [refresh, refreshTemplates])
+
+  function handleDeleteTemplate(templateIdToDelete: string) {
+    deleteCustomTemplate(token, templateIdToDelete)
+      .then(() => {
+        refreshTemplates()
+        setTemplateId((current) => (current === `custom:${templateIdToDelete}` ? 'blank' : current))
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not delete template'))
+  }
 
   function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -111,11 +133,45 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
                 {t.label}
               </option>
             ))}
+            {customTemplates.length > 0 && (
+              <optgroup label="Custom templates">
+                {customTemplates.map((t) => (
+                  <option key={t.id} value={`custom:${t.id}`}>
+                    {t.name} (by {t.savedBy})
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <button type="submit" className="btn" disabled={creating || !name.trim()}>
             {creating ? 'Creating…' : 'Create'}
           </button>
         </form>
+
+        {customTemplates.length > 0 && (
+          <div className="dashboard-form">
+            <h3>Custom templates</h3>
+            <ul className="template-list">
+              {customTemplates.map((t) => (
+                <li key={t.id} className="template-list-item">
+                  <span className="project-name">{t.name}</span>
+                  <span className="comment-time">
+                    by {t.savedBy} · {t.fileCount} file{t.fileCount === 1 ? '' : 's'}
+                  </span>
+                  {t.savedBy === username && (
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => handleDeleteTemplate(t.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <form onSubmit={handleJoin} className="dashboard-form">
           <h3>Join via invite link</h3>

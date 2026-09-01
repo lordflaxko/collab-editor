@@ -365,6 +365,45 @@ test('creating a project from the JavaScript template seeds a runnable file and 
   await expect(page.locator('.test-item-fail')).toHaveCount(0)
 })
 
+test('saving a project as a custom template makes it available and deletable from the dashboard', async ({
+  page,
+}) => {
+  const username = await openNewProject(page, 'customtpl')
+
+  await typeCode(page, 'console.log("from custom template")')
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('helper.py')
+  await page.keyboard.press('Enter')
+
+  const templateName = `My Template ${Date.now()}`
+  await page.getByRole('button', { name: 'Save as Template' }).click()
+  await page.locator('.save-template-popover input').fill(templateName)
+  await page.locator('.save-template-popover button', { hasText: 'Save' }).click()
+  await expect(page.locator('.save-template-popover')).toContainText('Saved')
+  await page.locator('.save-template-popover button', { hasText: 'Close' }).click()
+
+  await page.getByRole('button', { name: 'Dashboard' }).first().click()
+  const templateItem = page.locator('.template-list-item', { hasText: templateName })
+  await expect(templateItem).toContainText(`by ${username}`)
+  await expect(templateItem).toContainText('2 files')
+  await expect(templateItem.getByRole('button', { name: 'Delete' })).toBeVisible()
+
+  await page.getByPlaceholder('Project name').fill('Project fromtemplate')
+  await page.locator('.template-select').selectOption({ label: `${templateName} (by ${username})` })
+  await page.getByRole('button', { name: 'Create' }).click()
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible()
+  await page.waitForSelector('.cm-content')
+
+  await expect(page.locator('.file-tree-item')).toHaveCount(2)
+  await expect(page.locator('.file-tree-item', { hasText: 'helper.py' })).toBeVisible()
+  await expect(page.locator('.cm-content')).toContainText('from custom template')
+
+  await page.getByRole('button', { name: 'Dashboard' }).first().click()
+  await expect(templateItem.getByRole('button', { name: 'Delete' })).toBeVisible()
+  await templateItem.getByRole('button', { name: 'Delete' }).click()
+  await expect(templateItem).toHaveCount(0)
+})
+
 test("the language picker overrides a file's language independent of its extension", async ({ page }) => {
   await openNewProject(page, 'langpicker')
 

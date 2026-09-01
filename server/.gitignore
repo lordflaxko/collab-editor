@@ -5,5 +5,6 @@ users.json
 notifications.json
 projects.json
 invites.json
+customTemplates.json
 tools/
 repos/

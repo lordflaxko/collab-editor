@@ -5,6 +5,7 @@ const accounts = require('./accounts')
 const { getLoadedLiveDoc } = require('./yjsDoc')
 const { logActivity } = require('./activityLog')
 const { TEMPLATES } = require('./templates')
+const customTemplates = require('./customTemplates')
 
 const PROJECTS_PATH = path.join(__dirname, 'projects.json')
 const INVITES_PATH = path.join(__dirname, 'invites.json')
@@ -84,7 +85,8 @@ function requireMinRole(token, projectId, minRole) {
 // content neither of them can see the other's edits on).
 //
 // A known templateId seeds that template's file set (e.g. a FizzBuzz
-// implementation plus its test file for the JavaScript template); anything
+// implementation plus its test file for the JavaScript template); a
+// "custom:<id>" templateId looks up a user-saved template instead. Anything
 // else (including no templateId at all, i.e. "Blank") falls back to the
 // single empty main.js this app has always started new projects with.
 async function seedDefaultFile(projectId, templateId) {
@@ -92,8 +94,14 @@ async function seedDefaultFile(projectId, templateId) {
   const filesMap = ydoc.getMap('files')
   const order = ydoc.getArray('fileOrder')
   if (order.length > 0) return
-  const template = templateId ? TEMPLATES[templateId] : null
-  const files = template ? template.files : [{ name: 'main.js', languageId: 'javascript', content: '' }]
+  let files = null
+  if (templateId?.startsWith('custom:')) {
+    const custom = customTemplates.getCustomTemplate(templateId.slice('custom:'.length))
+    if (custom) files = custom.files
+  } else if (templateId && TEMPLATES[templateId]) {
+    files = TEMPLATES[templateId].files
+  }
+  if (!files) files = [{ name: 'main.js', languageId: 'javascript', content: '' }]
   ydoc.transact(() => {
     for (const file of files) {
       const id = crypto.randomUUID().slice(0, 8)
