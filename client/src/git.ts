@@ -41,28 +41,40 @@ export interface GitBranches {
   all: string[]
 }
 
-export interface Author {
-  name: string
-}
-
 export function commitAll(
   room: string,
   message: string,
-  author: Author,
+  sessionToken: string | null,
 ): Promise<{ commits: GitCommit[] }> {
-  return postJson('/git/commit', { room, message, author })
+  return postJson('/git/commit', { room, message, sessionToken })
+}
+
+export function restoreVersion(
+  room: string,
+  hash: string,
+  sessionToken: string | null,
+): Promise<{ commits: GitCommit[] }> {
+  return postJson('/git/restore', { room, hash, sessionToken })
 }
 
 export function fetchBranches(room: string): Promise<GitBranches> {
   return postJson('/git/branches', { room })
 }
 
-export function createBranch(room: string, name: string): Promise<GitBranches> {
-  return postJson('/git/branch/create', { room, name })
+export function createBranch(
+  room: string,
+  name: string,
+  sessionToken: string | null,
+): Promise<GitBranches> {
+  return postJson('/git/branch/create', { room, name, sessionToken })
 }
 
-export function switchBranch(room: string, name: string): Promise<GitBranches> {
-  return postJson('/git/branch/switch', { room, name })
+export function switchBranch(
+  room: string,
+  name: string,
+  sessionToken: string | null,
+): Promise<GitBranches> {
+  return postJson('/git/branch/switch', { room, name, sessionToken })
 }
 
 export function pushBranch(
@@ -70,8 +82,9 @@ export function pushBranch(
   remoteUrl: string,
   token: string,
   branch: string,
+  sessionToken: string | null,
 ): Promise<{ ok: true }> {
-  return postJson('/git/push', { room, remoteUrl, token, branch })
+  return postJson('/git/push', { room, remoteUrl, token, branch, sessionToken })
 }
 
 export function pullBranch(
@@ -79,8 +92,9 @@ export function pullBranch(
   remoteUrl: string,
   token: string,
   branch: string,
+  sessionToken: string | null,
 ): Promise<{ conflict: boolean }> {
-  return postJson('/git/pull', { room, remoteUrl, token, branch })
+  return postJson('/git/pull', { room, remoteUrl, token, branch, sessionToken })
 }
 
 export interface PullRequest {

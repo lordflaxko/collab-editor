@@ -131,7 +131,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/create') {
     try {
       const { token, name, visibility } = await readJsonBody(req)
-      const project = projects.createProject(token, name, visibility)
+      const project = await projects.createProject(token, name, visibility)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -185,7 +185,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/join') {
     try {
       const { token, inviteToken } = await readJsonBody(req)
-      const project = projects.joinViaInvite(token, inviteToken)
+      const project = await projects.joinViaInvite(token, inviteToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -211,7 +211,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/member/role') {
     try {
       const { token, projectId, targetUsername, role } = await readJsonBody(req)
-      const project = projects.changeRole(token, projectId, targetUsername, role)
+      const project = await projects.changeRole(token, projectId, targetUsername, role)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -224,7 +224,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/member/remove') {
     try {
       const { token, projectId, targetUsername } = await readJsonBody(req)
-      const project = projects.removeMember(token, projectId, targetUsername)
+      const project = await projects.removeMember(token, projectId, targetUsername)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -237,7 +237,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/visibility') {
     try {
       const { token, projectId, visibility } = await readJsonBody(req)
-      const project = projects.setVisibility(token, projectId, visibility)
+      const project = await projects.setVisibility(token, projectId, visibility)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -263,7 +263,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/projects/transfer') {
     try {
       const { token, projectId, newOwnerUsername } = await readJsonBody(req)
-      const project = projects.transferOwnership(token, projectId, newOwnerUsername)
+      const project = await projects.transferOwnership(token, projectId, newOwnerUsername)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ project }))
     } catch (err) {
@@ -314,8 +314,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/git/commit') {
     try {
-      const { room, message, author } = await readJsonBody(req)
-      const commits = await git.commitAll(room, message, author)
+      const { room, message, sessionToken } = await readJsonBody(req)
+      const commits = await git.commitAll(room, message, sessionToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ commits }))
     } catch (err) {
@@ -340,8 +340,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/git/branch/create') {
     try {
-      const { room, name } = await readJsonBody(req)
-      const branches = await git.createBranch(room, name)
+      const { room, name, sessionToken } = await readJsonBody(req)
+      const branches = await git.createBranch(room, name, sessionToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(branches))
     } catch (err) {
@@ -353,8 +353,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/git/branch/switch') {
     try {
-      const { room, name } = await readJsonBody(req)
-      const branches = await git.switchBranch(room, name)
+      const { room, name, sessionToken } = await readJsonBody(req)
+      const branches = await git.switchBranch(room, name, sessionToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(branches))
     } catch (err) {
@@ -366,8 +366,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/git/push') {
     try {
-      const { room, remoteUrl, token, branch } = await readJsonBody(req)
-      await git.push(room, remoteUrl, token, branch)
+      const { room, remoteUrl, token, branch, sessionToken } = await readJsonBody(req)
+      await git.push(room, remoteUrl, token, branch, sessionToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ ok: true }))
     } catch (err) {
@@ -379,10 +379,23 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/git/pull') {
     try {
-      const { room, remoteUrl, token, branch } = await readJsonBody(req)
-      const result = await git.pull(room, remoteUrl, token, branch)
+      const { room, remoteUrl, token, branch, sessionToken } = await readJsonBody(req)
+      const result = await git.pull(room, remoteUrl, token, branch, sessionToken)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/git/restore') {
+    try {
+      const { room, hash, sessionToken } = await readJsonBody(req)
+      const commits = await git.restoreVersion(room, hash, sessionToken)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ commits }))
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: String(err.message ?? err) }))

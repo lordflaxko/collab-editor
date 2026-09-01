@@ -2,6 +2,9 @@ const fs = require('fs')
 const path = require('path')
 const simpleGit = require('simple-git')
 const { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom } = require('./gitSync')
+const projects = require('./projects')
+const { logActivity } = require('./activityLog')
+const { maybeCheckpoint } = require('./checkpoints')
 
 // Every operation below reads and/or writes the room's shared working
 // directory (syncing Yjs content to disk, running git, then sometimes
@@ -80,6 +83,7 @@ function buildAuthenticatedUrl(remoteUrl, token) {
 
 async function _getStatus(room) {
   await syncRoomToWorkingDir(room)
+  await maybeCheckpoint(room)
   const git = await ensureRepo(room)
   const status = await git.status()
   return {
@@ -110,27 +114,36 @@ async function _getDiff(room, filePath) {
   return { diff, isNewFile: false }
 }
 
-async function _commitAll(room, message, author) {
+// Every mutating operation below derives the acting username from the
+// caller's own session token (verified server-side via requireMinRole)
+// rather than trusting a client-supplied "author" field -- previously
+// these endpoints didn't check the caller's role at all, so a Viewer (or
+// anyone unauthenticated who knew a room id) could call them directly and
+// mutate the project's git history regardless of what the UI showed them.
+async function _commitAll(room, message, sessionToken) {
   if (!message || !message.trim()) throw new Error('A commit message is required')
+  const { username } = projects.requireMinRole(sessionToken, room, 'editor')
   await syncRoomToWorkingDir(room)
   const git = await ensureRepo(room)
   await git.add(['-A'])
-  const name = author?.name?.trim() || 'Anonymous'
-  const email = `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}@collab-editor.local`
+  const email = `${username.replace(/[^a-zA-Z0-9_-]/g, '_')}@collab-editor.local`
   try {
-    await git.commit(message.trim(), undefined, { '--author': `${name} <${email}>` })
+    await git.commit(message.trim(), undefined, { '--author': `${username} <${email}>` })
   } catch (err) {
     throw new Error(err.message?.includes('nothing to commit') ? 'Nothing to commit' : err.message)
   }
+  await logActivity(room, 'commit', username, { message: message.trim() })
   return getLog(room)
 }
 
-async function _createBranch(room, name) {
+async function _createBranch(room, name, sessionToken) {
   if (!name || !/^[a-zA-Z0-9._/-]+$/.test(name)) {
     throw new Error('Branch names may only contain letters, numbers, and ._/-')
   }
+  const { username } = projects.requireMinRole(sessionToken, room, 'editor')
   const git = await ensureRepo(room)
   await git.checkoutLocalBranch(name)
+  await logActivity(room, 'branch-created', username, { name })
   return listBranches(room)
 }
 
@@ -138,15 +151,18 @@ async function _createBranch(room, name) {
 // connected -- there's no such thing as a private checkout when a room is
 // one shared Y.Doc. Refuses (surfacing git's own error) if there are
 // uncommitted changes that would be overwritten, same as plain git.
-async function _switchBranch(room, name) {
+async function _switchBranch(room, name, sessionToken) {
+  const { username } = projects.requireMinRole(sessionToken, room, 'editor')
   await syncRoomToWorkingDir(room)
   const git = await ensureRepo(room)
   await git.checkout(name)
   await applyWorkingDirToRoom(room)
+  await logActivity(room, 'branch-switched', username, { name })
   return listBranches(room)
 }
 
-async function _push(room, remoteUrl, token, branch) {
+async function _push(room, remoteUrl, token, branch, sessionToken) {
+  projects.requireMinRole(sessionToken, room, 'editor')
   const git = await ensureRepo(room)
   const authUrl = buildAuthenticatedUrl(remoteUrl, token)
   await git.push(authUrl, branch, ['--set-upstream'])
@@ -157,7 +173,8 @@ async function _push(room, remoteUrl, token, branch) {
 // themselves -- so on conflict this still applies the (marker-containing)
 // working directory back to the room rather than leaving the user stuck,
 // and reports the conflict rather than throwing.
-async function _pull(room, remoteUrl, token, branch) {
+async function _pull(room, remoteUrl, token, branch, sessionToken) {
+  projects.requireMinRole(sessionToken, room, 'editor')
   await syncRoomToWorkingDir(room)
   const git = await ensureRepo(room)
   const authUrl = buildAuthenticatedUrl(remoteUrl, token)
@@ -173,6 +190,49 @@ async function _pull(room, remoteUrl, token, branch) {
   return { conflict }
 }
 
+// Restores the room to exactly the file set/content of an earlier commit
+// (which may be a manual commit or one of the auto-checkpoints above) --
+// this is the "time machine" the restore feature needs, since checkpoints
+// mean even uncommitted live edits eventually become a reachable commit.
+// Rather than moving the branch pointer (a hard reset, which would discard
+// anything committed after the target and confuse everyone else sharing
+// this room), it copies that commit's tree into the working directory,
+// applies it to the live Y.Doc for every connected client, and records the
+// result as a new commit on top of history -- a restore is forward-moving,
+// not a rewrite of the past.
+async function _restoreVersion(room, hash, sessionToken) {
+  const { username } = projects.requireMinRole(sessionToken, room, 'editor')
+  const git = await ensureRepo(room)
+  const dir = roomDir(room)
+  let fileList
+  try {
+    fileList = (await git.raw(['ls-tree', '-r', '--name-only', hash])).split('\n').filter(Boolean)
+  } catch {
+    throw new Error('That version could not be found')
+  }
+  for (const entry of fs.readdirSync(dir)) {
+    if (entry === '.git') continue
+    fs.rmSync(path.join(dir, entry), { force: true, recursive: true })
+  }
+  for (const name of fileList) {
+    const content = await git.show([`${hash}:${name}`])
+    fs.writeFileSync(path.join(dir, name), content)
+  }
+  await applyWorkingDirToRoom(room)
+  await git.add(['-A'])
+  const shortHash = hash.slice(0, 7)
+  const email = `${username.replace(/[^a-zA-Z0-9_-]/g, '_')}@collab-editor.local`
+  try {
+    await git.commit(`Restored to ${shortHash}`, undefined, { '--author': `${username} <${email}>` })
+  } catch (err) {
+    // The room already matched that version, so there was nothing new to
+    // commit -- not an error from the user's point of view.
+    if (!err.message?.includes('nothing to commit')) throw err
+  }
+  await logActivity(room, 'version-restored', username, { hash: shortHash })
+  return getLog(room)
+}
+
 // getLog/listBranches are called both directly by routes (where they need
 // the lock, like everything else here) and internally by the other locked
 // functions above (where taking the lock again would deadlock against
@@ -184,9 +244,16 @@ module.exports = {
   getDiff: (room, filePath) => withRoomLock(room, () => _getDiff(room, filePath)),
   getLog: (room) => withRoomLock(room, () => getLog(room)),
   listBranches: (room) => withRoomLock(room, () => listBranches(room)),
-  commitAll: (room, message, author) => withRoomLock(room, () => _commitAll(room, message, author)),
-  createBranch: (room, name) => withRoomLock(room, () => _createBranch(room, name)),
-  switchBranch: (room, name) => withRoomLock(room, () => _switchBranch(room, name)),
-  push: (room, remoteUrl, token, branch) => withRoomLock(room, () => _push(room, remoteUrl, token, branch)),
-  pull: (room, remoteUrl, token, branch) => withRoomLock(room, () => _pull(room, remoteUrl, token, branch)),
+  commitAll: (room, message, sessionToken) =>
+    withRoomLock(room, () => _commitAll(room, message, sessionToken)),
+  createBranch: (room, name, sessionToken) =>
+    withRoomLock(room, () => _createBranch(room, name, sessionToken)),
+  switchBranch: (room, name, sessionToken) =>
+    withRoomLock(room, () => _switchBranch(room, name, sessionToken)),
+  push: (room, remoteUrl, token, branch, sessionToken) =>
+    withRoomLock(room, () => _push(room, remoteUrl, token, branch, sessionToken)),
+  pull: (room, remoteUrl, token, branch, sessionToken) =>
+    withRoomLock(room, () => _pull(room, remoteUrl, token, branch, sessionToken)),
+  restoreVersion: (room, hash, sessionToken) =>
+    withRoomLock(room, () => _restoreVersion(room, hash, sessionToken)),
 }

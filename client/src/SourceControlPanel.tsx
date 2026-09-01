@@ -9,6 +9,7 @@ import {
   switchBranch,
   pushBranch,
   pullBranch,
+  restoreVersion,
   listPullRequests,
   createPullRequest,
   type GitStatus,
@@ -20,8 +21,8 @@ import {
 
 interface SourceControlPanelProps {
   room: string
-  user: { name: string }
   canEdit: boolean
+  sessionToken: string | null
   onClose: () => void
 }
 
@@ -49,7 +50,7 @@ function DiffView({ diff }: { diff: GitDiff | null }) {
   )
 }
 
-function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanelProps) {
+function SourceControlPanel({ room, canEdit, sessionToken, onClose }: SourceControlPanelProps) {
   const [tab, setTab] = useState<Tab>('changes')
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [commits, setCommits] = useState<GitCommit[]>([])
@@ -119,7 +120,7 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
     if (!commitMessage.trim()) return
     setCommitting(true)
     setError(null)
-    commitAll(room, commitMessage.trim(), user)
+    commitAll(room, commitMessage.trim(), sessionToken)
       .then(() => {
         setCommitMessage('')
         setSelectedFile(null)
@@ -132,7 +133,7 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
 
   function handleCreateBranch() {
     if (!newBranchName.trim()) return
-    createBranch(room, newBranchName.trim())
+    createBranch(room, newBranchName.trim(), sessionToken)
       .then((b) => {
         setBranches(b)
         setNewBranchName('')
@@ -149,7 +150,7 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
     ) {
       return
     }
-    switchBranch(room, name)
+    switchBranch(room, name, sessionToken)
       .then((b) => {
         setBranches(b)
         setSelectedFile(null)
@@ -159,12 +160,29 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not switch branch'))
   }
 
+  function handleRestore(hash: string) {
+    if (
+      !window.confirm(
+        'Restore this version? This replaces the current files for everyone in this room with this version\'s contents (recorded as a new commit, so nothing already committed is lost).',
+      )
+    ) {
+      return
+    }
+    setError(null)
+    restoreVersion(room, hash, sessionToken)
+      .then((data) => {
+        setCommits(data.commits)
+        if (tab === 'changes') refreshStatus()
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Restore failed'))
+  }
+
   function handlePush() {
     if (!remoteUrl.trim() || !token.trim() || !branches?.current) return
     setRemoteBusy(true)
     setRemoteError(null)
     setRemoteMessage(null)
-    pushBranch(room, remoteUrl.trim(), token.trim(), branches.current)
+    pushBranch(room, remoteUrl.trim(), token.trim(), branches.current, sessionToken)
       .then(() => setRemoteMessage(`Pushed ${branches.current} to remote.`))
       .catch((err) => setRemoteError(err instanceof Error ? err.message : 'Push failed'))
       .finally(() => setRemoteBusy(false))
@@ -175,7 +193,7 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
     setRemoteBusy(true)
     setRemoteError(null)
     setRemoteMessage(null)
-    pullBranch(room, remoteUrl.trim(), token.trim(), branches.current)
+    pullBranch(room, remoteUrl.trim(), token.trim(), branches.current, sessionToken)
       .then((result) => {
         setRemoteMessage(
           result.conflict
@@ -346,8 +364,19 @@ function SourceControlPanel({ room, user, canEdit, onClose }: SourceControlPanel
             commits.map((c) => (
               <div key={c.hash} className="sc-commit-item">
                 <div className="sc-commit-message">{c.message}</div>
-                <div className="comment-time">
-                  {c.authorName} · {c.hash.slice(0, 7)} · {new Date(c.date).toLocaleString()}
+                <div className="sc-commit-meta-row">
+                  <div className="comment-time">
+                    {c.authorName} · {c.hash.slice(0, 7)} · {new Date(c.date).toLocaleString()}
+                  </div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => handleRestore(c.hash)}
+                    >
+                      Restore
+                    </button>
+                  )}
                 </div>
               </div>
             ))

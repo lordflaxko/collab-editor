@@ -2,6 +2,8 @@ const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 const accounts = require('./accounts')
+const { getLoadedLiveDoc } = require('./yjsDoc')
+const { logActivity } = require('./activityLog')
 
 const PROJECTS_PATH = path.join(__dirname, 'projects.json')
 const INVITES_PATH = path.join(__dirname, 'invites.json')
@@ -56,7 +58,42 @@ function requireRole(project, username, minRole) {
   return role
 }
 
-function createProject(token, name, visibility) {
+// Used by routes outside projects.js itself (git operations) that need to
+// both authenticate the caller against a project's role and learn who they
+// are, in one call -- previously those endpoints trusted whatever
+// "author" name the client claimed in the request body, and didn't check
+// role at all, so a Viewer (or anyone unauthenticated) could call them
+// directly to mutate the project's git history regardless of what the UI
+// showed them.
+function requireMinRole(token, projectId, minRole) {
+  const { project, role } = getProjectForRequester(token, projectId)
+  if (ROLE_RANK[role] < ROLE_RANK[minRole]) {
+    throw new Error('You do not have permission to do that')
+  }
+  return { project, role, username: accounts.getSessionUser(token) }
+}
+
+// Seeds the new project's one starting file directly in its Y.Doc, as a
+// single atomic server-side action at creation time -- rather than having
+// each connecting client reactively check "is the file list empty?" and
+// create one if so, which is exactly the kind of check-then-act race a CRDT
+// can't resolve for you: two clients connecting to a brand-new project at
+// close to the same time could both see zero files and both create their
+// own "main.js", ending up with two separate files (and two people editing
+// content neither of them can see the other's edits on).
+async function seedDefaultFile(projectId) {
+  const ydoc = await getLoadedLiveDoc(projectId)
+  const filesMap = ydoc.getMap('files')
+  const order = ydoc.getArray('fileOrder')
+  if (order.length > 0) return
+  const id = crypto.randomUUID().slice(0, 8)
+  ydoc.transact(() => {
+    filesMap.set(id, { name: 'main.js', languageId: 'javascript' })
+    order.push([id])
+  })
+}
+
+async function createProject(token, name, visibility) {
   const username = requireUser(token)
   if (!name || !name.trim()) throw new Error('Project name is required')
   if (visibility !== 'public' && visibility !== 'private') {
@@ -74,6 +111,7 @@ function createProject(token, name, visibility) {
   }
   projects[id] = project
   saveProjects(projects)
+  await seedDefaultFile(id)
   return project
 }
 
@@ -109,7 +147,7 @@ function createInviteLink(token, projectId, role) {
   return inviteToken
 }
 
-function joinViaInvite(token, inviteToken) {
+async function joinViaInvite(token, inviteToken) {
   const username = requireUser(token)
   const invite = loadInvites()[inviteToken]
   if (!invite) throw new Error('Invalid or expired invite link')
@@ -119,6 +157,7 @@ function joinViaInvite(token, inviteToken) {
   if (!project.members[username]) {
     project.members[username] = invite.role
     saveProjects(projects)
+    await logActivity(project.id, 'member-added', username, { role: invite.role })
   }
   return project
 }
@@ -128,7 +167,7 @@ function listMembers(token, projectId) {
   return project.members
 }
 
-function changeRole(token, projectId, targetUsername, role) {
+async function changeRole(token, projectId, targetUsername, role) {
   const username = requireUser(token)
   const projects = loadProjects()
   const project = projects[projectId]
@@ -139,10 +178,11 @@ function changeRole(token, projectId, targetUsername, role) {
   if (!project.members[targetUsername]) throw new Error('That user is not a member')
   project.members[targetUsername] = role
   saveProjects(projects)
+  await logActivity(projectId, 'role-changed', username, { targetUsername, role })
   return project
 }
 
-function removeMember(token, projectId, targetUsername) {
+async function removeMember(token, projectId, targetUsername) {
   const username = requireUser(token)
   const projects = loadProjects()
   const project = projects[projectId]
@@ -151,10 +191,11 @@ function removeMember(token, projectId, targetUsername) {
   if (targetUsername === project.ownerUsername) throw new Error('Cannot remove the owner')
   delete project.members[targetUsername]
   saveProjects(projects)
+  await logActivity(projectId, 'member-removed', username, { targetUsername })
   return project
 }
 
-function setVisibility(token, projectId, visibility) {
+async function setVisibility(token, projectId, visibility) {
   const username = requireUser(token)
   const projects = loadProjects()
   const project = projects[projectId]
@@ -163,6 +204,7 @@ function setVisibility(token, projectId, visibility) {
   if (visibility !== 'public' && visibility !== 'private') throw new Error('Invalid visibility')
   project.visibility = visibility
   saveProjects(projects)
+  await logActivity(projectId, 'visibility-changed', username, { visibility })
   return project
 }
 
@@ -176,7 +218,7 @@ function deleteProject(token, projectId) {
   saveProjects(projects)
 }
 
-function transferOwnership(token, projectId, newOwnerUsername) {
+async function transferOwnership(token, projectId, newOwnerUsername) {
   const username = requireUser(token)
   const projects = loadProjects()
   const project = projects[projectId]
@@ -187,6 +229,7 @@ function transferOwnership(token, projectId, newOwnerUsername) {
   project.members[newOwnerUsername] = 'owner'
   project.members[username] = 'admin'
   saveProjects(projects)
+  await logActivity(projectId, 'ownership-transferred', username, { newOwnerUsername })
   return project
 }
 
@@ -194,6 +237,7 @@ module.exports = {
   createProject,
   getProject,
   getProjectForRequester,
+  requireMinRole,
   roleFor,
   myProjects,
   createInviteLink,

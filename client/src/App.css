@@ -938,9 +938,48 @@
   border-bottom: none;
 }
 
+/* Activity panel */
+
+.activity-panel {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.activity-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.activity-item {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-text {
+  margin-bottom: 0.15rem;
+}
+
 .sc-commit-message {
   font-weight: 600;
   margin-bottom: 0.15rem;
+}
+
+.sc-commit-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .sc-diff-viewer {

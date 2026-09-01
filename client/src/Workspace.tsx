@@ -9,6 +9,7 @@ import RunPanel from './RunPanel'
 import ChatPanel from './ChatPanel'
 import CommentPopover from './CommentPopover'
 import SourceControlPanel from './SourceControlPanel'
+import ActivityPanel from './ActivityPanel'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -53,14 +54,16 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     [room, ydoc, token],
   )
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [synced, setSynced] = useState(false)
   const { files, createFile, renameFile, deleteFile, setFileLanguage, ensureDefaultFile } =
-    useFileTree(ydoc)
+    useFileTree(ydoc, user.name)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editorHandle, setEditorHandle] = useState<EditorHandle | null>(null)
   const [formatError, setFormatError] = useState<string | null>(null)
   const [formatting, setFormatting] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [sourceControlOpen, setSourceControlOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
@@ -72,7 +75,14 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   useEffect(() => {
     const onStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
       setStatus(status)
+      if (status !== 'connected') setSynced(false)
     }
+    // 'connected' only means the WebSocket handshake succeeded -- the
+    // document's actual content hasn't necessarily arrived yet. Gating the
+    // "seed a default file" logic below on this instead avoids briefly
+    // seeing an empty file list and creating a duplicate main.js before the
+    // real (possibly already-seeded) content has synced in.
+    const onSynced = (isSynced: boolean) => setSynced(isSynced)
     const onClose = (event: CloseEvent) => {
       if (event.code === FORBIDDEN_CODE || event.code === PROJECT_NOT_FOUND_CODE) {
         provider.disconnect()
@@ -80,29 +90,33 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
       }
     }
     provider.on('status', onStatus)
+    provider.on('synced', onSynced)
     provider.on('connection-close', onClose)
     provider.connect()
     return () => {
       provider.off('status', onStatus)
+      provider.off('synced', onSynced)
       provider.off('connection-close', onClose)
       // Explicitly broadcasts "I'm gone" over the still-open connection
       // before closing the transport, rather than relying solely on the
-      // server noticing the socket close -- which was leaving stale
-      // presence entries behind under React StrictMode's dev-mode
-      // mount/cleanup/remount cycle.
+      // server noticing the socket close.
       provider.awareness.setLocalState(null)
       provider.disconnect()
     }
   }, [provider, onAccessRevoked])
 
-  // Once connected, make sure there's a file to show: seed a default the first
-  // time anyone opens a fresh document, or fall back to another file if the
-  // active one got deleted (by us or someone else).
+  // Once the document has actually synced (not just "the socket is open"),
+  // make sure there's a file to show: seed a default the first time anyone
+  // opens a fresh document, or fall back to another file if the active one
+  // got deleted (by us or someone else). New projects already come with a
+  // seeded main.js from the server, so in practice this is a fallback for
+  // edge cases (e.g. every file having been deleted) rather than the
+  // primary way a project gets its first file.
   useEffect(() => {
-    if (status !== 'connected') return
+    if (status !== 'connected' || !synced) return
     if (activeId && files.some((f) => f.id === activeId)) return
     setActiveId(files[0]?.id ?? ensureDefaultFile())
-  }, [status, files, activeId, ensureDefaultFile])
+  }, [status, synced, files, activeId, ensureDefaultFile])
 
   const activeFile = files.find((f) => f.id === activeId) ?? null
   const activeLanguage = languageById(activeFile?.languageId ?? 'javascript')
@@ -248,6 +262,13 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               Source Control
             </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => setActivityOpen((v) => !v)}
+            >
+              Activity
+            </button>
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -280,11 +301,12 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
       {sourceControlOpen && (
         <SourceControlPanel
           room={room}
-          user={user}
           canEdit={canEdit}
+          sessionToken={token}
           onClose={() => setSourceControlOpen(false)}
         />
       )}
+      {activityOpen && <ActivityPanel ydoc={ydoc} onClose={() => setActivityOpen(false)} />}
       {openThread?.mode === 'new' && (
         <CommentPopover
           mode="new"

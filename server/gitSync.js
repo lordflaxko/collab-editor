@@ -1,24 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
-const Y = require('yjs')
-const { getPersistence, getYDoc } = require('y-websocket/bin/utils')
-
-// getYDoc's automatic persistence load (bindState) happens in the
-// background with no way to await it, so a doc nobody has loaded in this
-// process yet can briefly look empty. Re-applying the fully-loaded snapshot
-// here is safe even if bindState is also mid-flight or already finished --
-// Yjs updates are per-operation and idempotent, so merging in an
-// already-known state is a no-op, not a rollback.
-async function getLoadedLiveDoc(room) {
-  const doc = getYDoc(room)
-  const persistence = getPersistence()
-  if (persistence) {
-    const persistedYdoc = await persistence.provider.getYDoc(room)
-    Y.applyUpdate(doc, Y.encodeStateAsUpdate(persistedYdoc))
-  }
-  return doc
-}
+const { getPersistence } = require('y-websocket/bin/utils')
+const { getLoadedLiveDoc } = require('./yjsDoc')
 
 const REPOS_ROOT = path.join(__dirname, 'repos')
 

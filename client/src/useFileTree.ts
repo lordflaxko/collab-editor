@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import * as Y from 'yjs'
 import { languageFromFilename } from './languages'
+import { logClientActivity } from './activity'
 
 export interface FileMeta {
   id: string
@@ -19,7 +20,7 @@ export function contentKeyFor(fileId: string) {
   return `content:${fileId}`
 }
 
-export function useFileTree(ydoc: Y.Doc) {
+export function useFileTree(ydoc: Y.Doc, actor: string) {
   const filesMap = useMemo(() => ydoc.getMap<RawFileMeta>('files'), [ydoc])
   const order = useMemo(() => ydoc.getArray<string>('fileOrder'), [ydoc])
 
@@ -64,18 +65,21 @@ export function useFileTree(ydoc: Y.Doc) {
         filesMap.set(id, { name, languageId })
         order.push([id])
       })
+      logClientActivity(ydoc, 'file-created', actor, { name })
       return id
     },
-    [ydoc, filesMap, order],
+    [ydoc, filesMap, order, actor],
   )
 
   const renameFile = useCallback(
     (id: string, name: string) => {
       const meta = filesMap.get(id)
       if (!meta) return
+      const oldName = meta.name
       filesMap.set(id, { name, languageId: languageFromFilename(name).id })
+      logClientActivity(ydoc, 'file-renamed', actor, { oldName, name })
     },
-    [filesMap],
+    [ydoc, filesMap, actor],
   )
 
   const setFileLanguage = useCallback(
@@ -89,6 +93,7 @@ export function useFileTree(ydoc: Y.Doc) {
 
   const deleteFile = useCallback(
     (id: string) => {
+      const name = filesMap.get(id)?.name
       ydoc.transact(() => {
         filesMap.delete(id)
         const idx = order.toArray().indexOf(id)
@@ -96,8 +101,9 @@ export function useFileTree(ydoc: Y.Doc) {
         const text = ydoc.getText(contentKeyFor(id))
         text.delete(0, text.length)
       })
+      logClientActivity(ydoc, 'file-deleted', actor, { name })
     },
-    [ydoc, filesMap, order],
+    [ydoc, filesMap, order, actor],
   )
 
   // Seed a default file the first time anyone opens a fresh, empty document.
