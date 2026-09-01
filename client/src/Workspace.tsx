@@ -17,6 +17,7 @@ import ExplainPopover from './ExplainPopover'
 import APITestPanel from './APITestPanel'
 import BreakpointPopover from './BreakpointPopover'
 import SaveTemplatePopover from './SaveTemplatePopover'
+import DebugPanel from './DebugPanel'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -90,6 +91,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     existing: LineBreakpoint | undefined
   } | null>(null)
   const [saveTemplateCoords, setSaveTemplateCoords] = useState<Coords | null>(null)
+  const [debugOpen, setDebugOpen] = useState(false)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
 
@@ -397,6 +399,11 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
                 Save as Template
               </button>
             )}
+            {canEdit && (
+              <button type="button" className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>
+                Debug
+              </button>
+            )}
           </div>
         </div>
         {formatError && <div className="format-error">{formatError}</div>}
@@ -466,6 +473,16 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         />
       )}
       {apiTestOpen && <APITestPanel onClose={() => setApiTestOpen(false)} />}
+      {debugOpen && (
+        <DebugPanel
+          room={room}
+          sessionToken={token}
+          languageId={activeLanguage.id}
+          getCode={getCode}
+          breakpoints={resolvedBreakpoints}
+          onClose={() => setDebugOpen(false)}
+        />
+      )}
       {explainRequest && (
         <ExplainPopover
           coords={explainRequest.coords}

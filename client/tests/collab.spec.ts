@@ -972,6 +972,80 @@ test('setting a breakpoint injects a logpoint and shows captured watch values pe
   await expect(page.locator('.run-output-stdout')).toContainText('6')
 })
 
+test('real step-through debugging pauses at a breakpoint and shows live variables that update on resume', async ({
+  page,
+}) => {
+  await openNewProject(page, 'realdebug', 'private')
+
+  await page.locator('.cm-content').click()
+  await page.keyboard.insertText(
+    'let total = 0\nfor (let i = 1; i <= 3; i++) {\n  total += i\n}\nconsole.log(total)',
+  )
+
+  await page.locator('.cm-breakpoint-gutter .cm-gutterElement').nth(2).click()
+  await expect(page.locator('.breakpoint-popover')).toBeVisible()
+  await page.getByRole('button', { name: 'Set breakpoint' }).click()
+
+  await page.getByRole('button', { name: 'Debug', exact: true }).click()
+  await page.getByRole('button', { name: '▶ Start Debugging' }).click()
+
+  await expect(page.locator('.debug-status')).toContainText('Paused at line 3', { timeout: 20000 })
+  await expect(page.locator('.debug-var-item', { hasText: /^i1$/ })).toBeVisible()
+  await expect(page.locator('.debug-var-item', { hasText: /^total0$/ })).toBeVisible()
+
+  await page.getByRole('button', { name: '▶ Resume' }).click()
+  await expect(page.locator('.debug-var-item', { hasText: /^i2$/ })).toBeVisible({ timeout: 10000 })
+  await expect(page.locator('.debug-var-item', { hasText: /^total1$/ })).toBeVisible()
+
+  await page.getByRole('button', { name: '■ Stop' }).click()
+  await expect(page.locator('.debug-status')).toContainText('Exited')
+})
+
+test('real debugging is rejected for a public project even for its owner, and for a viewer on a private one', async ({
+  browser,
+}) => {
+  // Public project, owner (editor+) tries to connect directly -- rejected on
+  // visibility alone, since a public project's anonymous viewers could
+  // otherwise reach the same endpoint through the same UI.
+  const publicCtx = await browser.newContext()
+  const publicPage = await publicCtx.newPage()
+  await openNewProject(publicPage, 'debugsecpub', 'public')
+  const publicRoom = new URL(publicPage.url()).pathname.slice(1)
+  const publicToken = await publicPage.evaluate(() => localStorage.getItem('account-token'))
+  const publicCloseCode = await publicPage.evaluate(
+    ({ room, token }) =>
+      new Promise((resolve) => {
+        const ws = new WebSocket(`ws://localhost:1234/__debug?room=${room}&token=${token}`)
+        ws.onclose = (e) => resolve(e.code)
+      }),
+    { room: publicRoom, token: publicToken },
+  )
+  expect(publicCloseCode).toBe(4003)
+  await publicCtx.close()
+
+  // Private project, but the caller is only a viewer -- rejected on role.
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'debugsecpriv', 'private')
+  const viewerCtx = await browser.newContext()
+  const viewerPage = await viewerCtx.newPage()
+  await inviteAndJoin(ownerPage, viewerPage, 'debugsecviewer', 'viewer')
+  const privateRoom = new URL(viewerPage.url()).pathname.slice(1)
+  const viewerToken = await viewerPage.evaluate(() => localStorage.getItem('account-token'))
+  const viewerCloseCode = await viewerPage.evaluate(
+    ({ room, token }) =>
+      new Promise((resolve) => {
+        const ws = new WebSocket(`ws://localhost:1234/__debug?room=${room}&token=${token}`)
+        ws.onclose = (e) => resolve(e.code)
+      }),
+    { room: privateRoom, token: viewerToken },
+  )
+  expect(viewerCloseCode).toBe(4003)
+
+  await ownerCtx.close()
+  await viewerCtx.close()
+})
+
 test('the Test panel runs Node built-in tests against another file and shows pass/fail results', async ({
   page,
 }) => {

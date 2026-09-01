@@ -9,6 +9,7 @@ process.env.YPERSISTENCE = process.env.YPERSISTENCE || path.join(__dirname, 'dat
 const { setupWSConnection } = require('y-websocket/bin/utils')
 const { restrictToReadOnly } = require('./readOnlyGuard')
 const { handleRunConnection } = require('./runWs')
+const { handleDebugConnection } = require('./debugWs')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
 const notifications = require('./notifications')
@@ -569,6 +570,29 @@ wss.on('connection', (ws, req) => {
 
   if (url.pathname === '/__run') {
     handleRunConnection(ws)
+    return
+  }
+
+  if (url.pathname === '/__debug') {
+    const room = url.searchParams.get('room') ?? ''
+    const sessionToken = url.searchParams.get('token') ?? ''
+    try {
+      const { project } = projects.requireMinRole(sessionToken, room, 'editor')
+      // Real step-through debugging runs the submitted code as a real
+      // process (in its own sandboxed container, but still with normal
+      // outbound network access -- see debugSandbox.js) rather than inside
+      // Piston. That's a meaningfully bigger exposure than the read-only
+      // Run panel, so it's restricted to private projects only, on top of
+      // requiring editor+ -- an anonymous viewer of a public project can
+      // already use Run, but never this.
+      if (project.visibility !== 'private') {
+        throw new Error('real debugging is only available for private projects')
+      }
+    } catch {
+      ws.close(4003, 'forbidden')
+      return
+    }
+    handleDebugConnection(ws)
     return
   }
 
