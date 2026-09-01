@@ -740,3 +740,110 @@ test('creating a branch, committing on it, and switching back updates the live c
   await contextA.close()
   await contextB.close()
 })
+
+test('git mutation endpoints reject an unauthenticated caller and a viewer, even calling the API directly', async ({
+  browser,
+}) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'gitsec', 'private')
+  const room = new URL(ownerPage.url()).pathname.slice(1)
+
+  const viewerCtx = await browser.newContext()
+  const viewerPage = await viewerCtx.newPage()
+  await inviteAndJoin(ownerPage, viewerPage, 'gitsecviewer', 'viewer')
+  const viewerToken = await viewerPage.evaluate(() => localStorage.getItem('account-token'))
+
+  // Bypassing the UI entirely and hitting the REST endpoint straight on --
+  // this is what the security fix actually guards, since the UI hiding the
+  // Commit button never stopped anyone from doing this.
+  const anonResponse = await viewerPage.request.post('http://localhost:1234/git/commit', {
+    data: { room, message: 'malicious commit', sessionToken: null },
+  })
+  expect(anonResponse.ok()).toBe(false)
+
+  const viewerResponse = await viewerPage.request.post('http://localhost:1234/git/commit', {
+    data: { room, message: 'malicious commit', sessionToken: viewerToken },
+  })
+  expect(viewerResponse.ok()).toBe(false)
+
+  await ownerPage.getByRole('button', { name: 'Source Control' }).click()
+  await ownerPage.getByRole('button', { name: 'History' }).click()
+  await expect(ownerPage.locator('.sc-empty')).toContainText('No commits yet')
+
+  await ownerCtx.close()
+  await viewerCtx.close()
+})
+
+test('the Activity panel logs file, commit, and membership events', async ({ browser }) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  await openNewProject(ownerPage, 'activity', 'private')
+
+  await ownerPage.getByRole('button', { name: '+ New' }).click()
+  await ownerPage.getByPlaceholder('filename.ext').fill('helper.py')
+  await ownerPage.keyboard.press('Enter')
+
+  await typeCode(ownerPage, 'console.log("v1")')
+  await ownerPage.waitForTimeout(500)
+  await ownerPage.getByRole('button', { name: 'Source Control' }).click()
+  await ownerPage.locator('.sc-commit-box .text-input').fill('first commit')
+  await ownerPage.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(ownerPage.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+  await ownerPage.getByRole('button', { name: 'Close' }).click()
+
+  const viewerCtx = await browser.newContext()
+  const viewerPage = await viewerCtx.newPage()
+  await inviteAndJoin(ownerPage, viewerPage, 'activityviewer', 'viewer')
+
+  await ownerPage.getByRole('button', { name: 'Activity' }).click()
+  await expect(ownerPage.locator('.activity-item', { hasText: 'created helper.py' })).toBeVisible()
+  await expect(
+    ownerPage.locator('.activity-item', { hasText: 'committed "first commit"' }),
+  ).toBeVisible()
+  await expect(ownerPage.locator('.activity-item', { hasText: 'joined as viewer' })).toBeVisible()
+
+  await ownerCtx.close()
+  await viewerCtx.close()
+})
+
+test('restoring an earlier commit updates the live content for everyone and adds a new commit', async ({
+  browser,
+}) => {
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await openNewProject(pageA, 'restore')
+  await inviteAndJoin(pageA, pageB, 'restoreb', 'editor')
+
+  await typeCode(pageA, 'console.log("v1")')
+  await pageA.waitForTimeout(500)
+  await pageA.getByRole('button', { name: 'Source Control' }).click()
+  await pageA.locator('.sc-commit-box .text-input').fill('v1')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  await pageA.locator('.cm-content').click()
+  await pageA.keyboard.press('Control+A')
+  await pageA.keyboard.type('console.log("v2")')
+  await pageA.waitForTimeout(500)
+  await pageA.locator('.sc-commit-box .text-input').fill('v2')
+  await pageA.locator('.sc-commit-box button', { hasText: 'Commit' }).click()
+  await expect(pageA.locator('.sc-empty')).toContainText('No changes', { timeout: 10000 })
+
+  await pageA.getByRole('button', { name: 'History' }).click()
+  await expect(pageA.locator('.sc-commit-item')).toHaveCount(2)
+
+  pageA.once('dialog', (dialog) => dialog.accept())
+  await pageA.locator('.sc-commit-item', { hasText: 'v1' }).getByRole('button', { name: 'Restore' }).click()
+
+  await expect(pageA.locator('.sc-commit-item')).toHaveCount(3, { timeout: 10000 })
+  await expect(pageA.locator('.cm-content')).toContainText('v1')
+  await expect(pageA.locator('.cm-content')).not.toContainText('v2')
+  await expect(pageB.locator('.cm-content')).toContainText('v1', { timeout: 10000 })
+
+  await contextA.close()
+  await contextB.close()
+})

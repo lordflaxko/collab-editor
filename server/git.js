@@ -1,7 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const simpleGit = require('simple-git')
-const { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom } = require('./gitSync')
+const { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom, ensureRepo } = require('./gitSync')
 const projects = require('./projects')
 const { logActivity } = require('./activityLog')
 const { maybeCheckpoint } = require('./checkpoints')
@@ -30,21 +29,6 @@ function withRoomLock(room, fn) {
     ),
   )
   return result
-}
-
-async function ensureRepo(room) {
-  const dir = roomDir(room)
-  fs.mkdirSync(dir, { recursive: true })
-  const git = simpleGit(dir)
-  if (!fs.existsSync(path.join(dir, '.git'))) {
-    await git.init()
-    // A placeholder identity for the local repo config; real commits made
-    // through this app override author/committer per-commit with whoever
-    // is actually signed in.
-    await git.addConfig('user.name', 'Collab Editor')
-    await git.addConfig('user.email', 'collab-editor@localhost')
-  }
-  return git
 }
 
 async function getLog(room) {

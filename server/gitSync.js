@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const simpleGit = require('simple-git')
 const { getPersistence } = require('y-websocket/bin/utils')
 const { getLoadedLiveDoc } = require('./yjsDoc')
 
@@ -147,4 +148,30 @@ async function applyWorkingDirToRoom(room) {
   })
 }
 
-module.exports = { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom }
+// Every caller that runs a git command against a room's directory MUST go
+// through this first -- simple-git, given a directory with no .git of its
+// own, silently walks up to the nearest ANCESTOR repository instead of
+// failing. server/repos lives inside this project's own checkout, so a git
+// command issued before a room's repo has been initialized doesn't error
+// out; it quietly targets this actual project's git history instead. That
+// isn't hypothetical: an earlier version of the auto-checkpoint feature in
+// checkpoints.js called simpleGit(roomDir(room)).commit() directly without
+// this guard and committed a batch of unrelated in-progress source changes
+// onto this repo's real branch. Routing every git operation through
+// ensureRepo, which awaits git.init() before returning, closes that gap.
+async function ensureRepo(room) {
+  const dir = roomDir(room)
+  fs.mkdirSync(dir, { recursive: true })
+  const git = simpleGit(dir)
+  if (!fs.existsSync(path.join(dir, '.git'))) {
+    await git.init()
+    // A placeholder identity for the local repo config; real commits made
+    // through this app override author/committer per-commit with whoever
+    // is actually signed in (or "Auto-checkpoint" for automatic ones).
+    await git.addConfig('user.name', 'Collab Editor')
+    await git.addConfig('user.email', 'collab-editor@localhost')
+  }
+  return git
+}
+
+module.exports = { roomDir, syncRoomToWorkingDir, applyWorkingDirToRoom, ensureRepo }

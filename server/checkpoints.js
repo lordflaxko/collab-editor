@@ -1,5 +1,4 @@
-const simpleGit = require('simple-git')
-const { roomDir, syncRoomToWorkingDir } = require('./gitSync')
+const { syncRoomToWorkingDir, ensureRepo } = require('./gitSync')
 const { logActivity } = require('./activityLog')
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000
@@ -15,17 +14,23 @@ const lastCheckpointAt = new Map()
 // changes have been sitting for a while and snapshot them. The interval
 // gate keeps that from committing on every single call.
 async function maybeCheckpoint(room) {
-  const last = lastCheckpointAt.get(room) ?? 0
+  const last = lastCheckpointAt.get(room)
+  // The first time a room is seen, just start its clock rather than treating
+  // "never checkpointed" as "checkpoint overdue" -- otherwise a file you
+  // haven't even had a chance to look at in the Changes tab yet gets
+  // auto-committed out from under you the moment the panel first loads.
+  if (last === undefined) {
+    lastCheckpointAt.set(room, Date.now())
+    return
+  }
   if (Date.now() - last < CHECKPOINT_INTERVAL_MS) return
 
   await syncRoomToWorkingDir(room)
-  const git = simpleGit(roomDir(room))
-  let status
-  try {
-    status = await git.status()
-  } catch {
-    return
-  }
+  // Must go through ensureRepo, not a bare simpleGit(roomDir(room)) --
+  // see the comment on ensureRepo in gitSync.js for why that distinction
+  // matters here specifically.
+  const git = await ensureRepo(room)
+  const status = await git.status()
   if (status.isClean()) {
     lastCheckpointAt.set(room, Date.now())
     return
