@@ -15,6 +15,7 @@ import AIChatPanel from './AIChatPanel'
 import ReviewPanel from './ReviewPanel'
 import ExplainPopover from './ExplainPopover'
 import APITestPanel from './APITestPanel'
+import DatabasePanel from './DatabasePanel'
 import BreakpointPopover from './BreakpointPopover'
 import SaveTemplatePopover from './SaveTemplatePopover'
 import DebugPanel from './DebugPanel'
@@ -82,6 +83,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [aiPrefillKey, setAiPrefillKey] = useState(0)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [apiTestOpen, setApiTestOpen] = useState(false)
+  const [databaseOpen, setDatabaseOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const [explainRequest, setExplainRequest] = useState<{ coords: Coords; code: string } | null>(null)
   const { getForFile: getBreakpointsForFile, setBreakpoint, removeBreakpoint } = useBreakpoints()
@@ -153,6 +155,11 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   )
 
   const getCode = useCallback(() => ytext?.toString() ?? '', [ytext])
+
+  const getAllFiles = useCallback(
+    () => files.map((f) => ({ name: f.name, content: ydoc.getText(contentKeyFor(f.id)).toString() })),
+    [ydoc, files],
+  )
 
   // Stale coordinates/thread ids from the previous file would otherwise
   // dangle once the active file changes.
@@ -391,6 +398,15 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
               <button
                 type="button"
                 className="btn btn-small"
+                onClick={() => setDatabaseOpen((v) => !v)}
+              >
+                Database
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-small"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()
                   setSaveTemplateCoords({ top: rect.top, left: rect.left, bottom: rect.bottom })
@@ -427,6 +443,10 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         <RunPanel
           language={activeLanguage}
           getCode={getCode}
+          getAllFiles={getAllFiles}
+          activeFileName={activeFile?.name ?? ''}
+          room={room}
+          sessionToken={token}
           breakpoints={resolvedBreakpoints}
           onDebugWithAI={debugWithAI}
         />
@@ -473,6 +493,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         />
       )}
       {apiTestOpen && <APITestPanel onClose={() => setApiTestOpen(false)} />}
+      {databaseOpen && (
+        <DatabasePanel room={room} sessionToken={token} onClose={() => setDatabaseOpen(false)} />
+      )}
       {debugOpen && (
         <DebugPanel
           room={room}

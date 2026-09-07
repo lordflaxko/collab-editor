@@ -10,6 +10,7 @@ const { setupWSConnection } = require('y-websocket/bin/utils')
 const { restrictToReadOnly } = require('./readOnlyGuard')
 const { handleRunConnection } = require('./runWs')
 const { handleDebugConnection } = require('./debugWs')
+const { handlePackageRunConnection } = require('./packageRunWs')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
 const notifications = require('./notifications')
@@ -19,6 +20,7 @@ const githubApi = require('./githubApi')
 const testRunner = require('./testRunner')
 const aiAssistant = require('./aiAssistant')
 const customTemplates = require('./customTemplates')
+const database = require('./database')
 const { readRoomFiles } = require('./gitSync')
 const { logActivity } = require('./activityLog')
 
@@ -532,6 +534,26 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'POST' && req.url === '/db/query') {
+    try {
+      const { room, sessionToken, connectionString, query } = await readJsonBody(req)
+      const { project } = projects.requireMinRole(sessionToken, room, 'editor')
+      // Same reasoning as the real-debugging WS gate: this makes the server
+      // itself connect outbound on the caller's behalf, so it's restricted
+      // to private projects on top of requiring editor+.
+      if (project.visibility !== 'private') {
+        throw new Error('Database connections are only available for private projects')
+      }
+      const result = await database.runReadOnlyQuery(connectionString, query)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
   if (req.method === 'POST' && req.url === '/ai/explain') {
     try {
       const { room, sessionToken, code, languageId } = await readJsonBody(req)
@@ -593,6 +615,26 @@ wss.on('connection', (ws, req) => {
       return
     }
     handleDebugConnection(ws)
+    return
+  }
+
+  if (url.pathname === '/__runpkg') {
+    const room = url.searchParams.get('room') ?? ''
+    const sessionToken = url.searchParams.get('token') ?? ''
+    try {
+      const { project } = projects.requireMinRole(sessionToken, room, 'editor')
+      // npm install runs arbitrary postinstall scripts with real internet
+      // access inside a writable sandbox -- a bigger exposure than plain
+      // Run's package-less Piston sandbox, so it gets the same restriction
+      // as real debugging and database connectivity.
+      if (project.visibility !== 'private') {
+        throw new Error('Install & Run is only available for private projects')
+      }
+    } catch {
+      ws.close(4003, 'forbidden')
+      return
+    }
+    handlePackageRunConnection(ws)
     return
   }
 

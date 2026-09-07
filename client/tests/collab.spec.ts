@@ -356,7 +356,7 @@ test('creating a project from the JavaScript template seeds a runnable file and 
   await expect(page.locator('.file-tree-item', { hasText: 'main.test.js' })).toBeVisible()
   await expect(page.locator('.cm-content')).toContainText('fizzbuzz')
 
-  await page.getByRole('button', { name: /Run/ }).click()
+  await page.getByRole('button', { name: /^▶ Run/ }).click()
   await expect(page.locator('.run-output-stdout')).toContainText('FizzBuzz', { timeout: 20000 })
 
   await page.getByRole('button', { name: 'Tests' }).click()
@@ -479,7 +479,7 @@ test('the Run button executes code against the sandbox and shows stdout', async 
   await openNewProject(page, 'run')
 
   await typeCode(page, 'console.log(2 + 2)')
-  await page.getByRole('button', { name: /Run/ }).click()
+  await page.getByRole('button', { name: /^▶ Run/ }).click()
 
   await expect(page.locator('.run-output-stdout')).toContainText('4', { timeout: 20000 })
   await expect(page.locator('.run-output-exit')).toContainText('Exit code: 0')
@@ -517,7 +517,7 @@ test('Stop halts an in-flight run and the Run button works again afterward', asy
   await page.locator('.cm-content').click()
   await page.keyboard.press('Control+A')
   await page.keyboard.type('print("restarted")')
-  await page.getByRole('button', { name: /Run/ }).click()
+  await page.getByRole('button', { name: /^▶ Run/ }).click()
   await expect(page.locator('.run-output')).toContainText('restarted', { timeout: 15000 })
 })
 
@@ -962,7 +962,7 @@ test('setting a breakpoint injects a logpoint and shows captured watch values pe
   await page.getByRole('button', { name: 'Set breakpoint' }).click()
   await expect(page.locator('.cm-breakpoint-marker')).toBeVisible()
 
-  await page.getByRole('button', { name: /Run/ }).click()
+  await page.getByRole('button', { name: /^▶ Run/ }).click()
 
   await expect(page.locator('.debug-hit-item')).toHaveCount(3, { timeout: 15000 })
   await expect(page.locator('.debug-hit-item').nth(0)).toContainText('i = 1')
@@ -1044,6 +1044,77 @@ test('real debugging is rejected for a public project even for its owner, and fo
 
   await ownerCtx.close()
   await viewerCtx.close()
+})
+
+// Runs against a real, disposable Postgres container (postgres:16-alpine,
+// seeded with a two-row "widgets" table) rather than mocking the database
+// layer -- the entire point of this feature is that Postgres itself, not
+// application code, is what rejects a write, and that's not something a
+// mock can meaningfully stand in for.
+const TEST_DB_CONNECTION = 'postgres://postgres:test@127.0.0.1:5432/postgres'
+
+test('the Database panel runs a read-only query against Postgres and rejects a write', async ({ page }) => {
+  await openNewProject(page, 'dbtest', 'private')
+
+  await page.getByRole('button', { name: 'Database' }).click()
+  await page.getByPlaceholder('postgres://user:password@host:5432/dbname').fill(TEST_DB_CONNECTION)
+  await page.getByPlaceholder('SELECT * FROM ...').fill('SELECT * FROM widgets ORDER BY id')
+  await page.getByRole('button', { name: 'Run Query (read-only)' }).click()
+
+  await expect(page.locator('.database-table')).toContainText('sprocket', { timeout: 10000 })
+  await expect(page.locator('.database-table')).toContainText('gadget')
+
+  await page.getByPlaceholder('SELECT * FROM ...').fill("INSERT INTO widgets (name) VALUES ('nope')")
+  await page.getByRole('button', { name: 'Run Query (read-only)' }).click()
+  await expect(page.locator('.format-error')).toContainText('read-only transaction', { timeout: 10000 })
+})
+
+test('the Database panel is rejected for a public project even for its owner', async ({ page }) => {
+  await openNewProject(page, 'dbtestpublic', 'public')
+
+  await page.getByRole('button', { name: 'Database' }).click()
+  await page.getByPlaceholder('postgres://user:password@host:5432/dbname').fill(TEST_DB_CONNECTION)
+  await page.getByPlaceholder('SELECT * FROM ...').fill('SELECT 1')
+  await page.getByRole('button', { name: 'Run Query (read-only)' }).click()
+
+  await expect(page.locator('.format-error')).toContainText('private projects', { timeout: 10000 })
+})
+
+test('Install & Run installs dependencies and runs the entry file in a real container', async ({ page }) => {
+  await openNewProject(page, 'installrun', 'private')
+
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('package.json')
+  await page.keyboard.press('Enter')
+  await page.locator('.cm-content').click()
+  await page.keyboard.insertText('{"name": "test", "version": "1.0.0"}')
+
+  await page.locator('.file-tree-item', { hasText: 'main.js' }).click()
+  await typeCode(page, 'console.log("installed and ran")')
+
+  await page.getByRole('button', { name: 'Install & Run' }).click()
+  await expect(page.locator('.run-output')).toContainText('installed and ran', { timeout: 30000 })
+  await expect(page.locator('.run-output-exit')).toContainText('Exit code: 0')
+})
+
+test('Install & Run is rejected for a public project even for its owner', async ({ page }) => {
+  // A short label: uniqueUsername truncates to 20 chars total, and since
+  // Date.now().toString(36) is most-significant-digit-first, a long label
+  // leaves so little of the timestamp+random suffix that two runs close in
+  // time can produce the exact same username -- a real collision this test
+  // hit, not flakiness.
+  await openNewProject(page, 'pkgrunpub', 'public')
+  const room = new URL(page.url()).pathname.slice(1)
+  const token = await page.evaluate(() => localStorage.getItem('account-token'))
+  const closeCode = await page.evaluate(
+    ({ room, token }) =>
+      new Promise((resolve) => {
+        const ws = new WebSocket(`ws://localhost:1234/__runpkg?room=${room}&token=${token}`)
+        ws.onclose = (e) => resolve(e.code)
+      }),
+    { room, token },
+  )
+  expect(closeCode).toBe(4003)
 })
 
 test('the Test panel runs Node built-in tests against another file and shows pass/fail results', async ({

@@ -21,14 +21,34 @@ interface DebugHit {
 
 type Status = 'idle' | 'running' | 'stopped' | 'done'
 
+interface ProjectFile {
+  name: string
+  content: string
+}
+
 interface RunPanelProps {
   language: LanguageConfig
   getCode: () => string
+  getAllFiles: () => ProjectFile[]
+  activeFileName: string
+  room: string
+  sessionToken: string | null
   breakpoints: ResolvedBreakpoint[]
   onDebugWithAI: (question: string) => void
 }
 
-function RunPanel({ language, getCode, breakpoints, onDebugWithAI }: RunPanelProps) {
+const INSTALL_RUN_FORBIDDEN_CODE = 4003
+
+function RunPanel({
+  language,
+  getCode,
+  getAllFiles,
+  activeFileName,
+  room,
+  sessionToken,
+  breakpoints,
+  onDebugWithAI,
+}: RunPanelProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [output, setOutput] = useState<OutputSegment[]>([])
   const [exitInfo, setExitInfo] = useState<ExitInfo | null>(null)
@@ -140,6 +160,53 @@ function RunPanel({ language, getCode, breakpoints, onDebugWithAI }: RunPanelPro
     }
   }
 
+  // A separate, deliberate action rather than something plain Run falls
+  // back to automatically: this runs inside a writable, network-connected
+  // container (see server/packageRunner.js) so npm install can actually
+  // fetch and install real packages, which is both slower and a bigger
+  // sandbox than Piston's package-less, read-only Run. Breakpoints/logpoints
+  // don't apply here -- that stays a plain-Run-only feature.
+  function handleInstallAndRun() {
+    wsRef.current?.close()
+    setOutput([])
+    setExitInfo(null)
+    setError(null)
+    setDebugHits([])
+    stdoutBufferRef.current = ''
+    setStatus('running')
+
+    const startedAt = Date.now()
+    const params = new URLSearchParams({ room, token: sessionToken ?? '' })
+    const ws = new WebSocket(`ws://localhost:1234/__runpkg?${params.toString()}`)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'init', files: getAllFiles(), entryFile: activeFileName }))
+    }
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data)
+      if (msg.type === 'stdout' || msg.type === 'stderr') {
+        appendOutput({ stream: msg.type, text: msg.data })
+      } else if (msg.type === 'exit') {
+        setExitInfo({ code: msg.code, signal: msg.signal, wallTimeMs: Date.now() - startedAt })
+        setStatus((current) => (current === 'stopped' ? current : 'done'))
+      } else if (msg.type === 'error') {
+        setError(msg.message)
+        setStatus('done')
+      }
+    }
+    ws.onclose = (event) => {
+      if (event.code === INSTALL_RUN_FORBIDDEN_CODE) {
+        setError('Install & Run needs editor access on a private project.')
+        setStatus('done')
+      }
+    }
+    ws.onerror = () => {
+      setError('Could not reach the install-and-run service')
+      setStatus('done')
+    }
+  }
+
   function handleStop() {
     wsRef.current?.send(JSON.stringify({ type: 'stop' }))
     wsRef.current?.close()
@@ -176,6 +243,11 @@ function RunPanel({ language, getCode, breakpoints, onDebugWithAI }: RunPanelPro
         ) : (
           <button type="button" className="btn btn-run" onClick={handleRun}>
             ▶ {status === 'idle' ? 'Run' : 'Run again'}
+          </button>
+        )}
+        {!running && language.id === 'javascript' && (
+          <button type="button" className="btn btn-small" onClick={handleInstallAndRun}>
+            📦 Install &amp; Run
           </button>
         )}
         <input
