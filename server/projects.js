@@ -152,7 +152,9 @@ function getProjectForRequester(token, projectId) {
 
 function myProjects(token) {
   const username = requireUser(token)
-  return Object.values(loadProjects()).filter((p) => p.members[username])
+  return Object.values(loadProjects())
+    .filter((p) => p.members[username])
+    .sort((a, b) => a.createdAt - b.createdAt)
 }
 
 function createInviteLink(token, projectId, role) {
