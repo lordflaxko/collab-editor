@@ -169,10 +169,18 @@
 
 /* Workspace layout */
 
+/* Several side panels (Chat, Source Control, Activity, ...) can be open at
+   once alongside the editor. Without a floor on the editor's width, enough
+   open panels would squeeze it down until its toolbar's ~13 buttons had no
+   room to sit two-per-row and stacked one-per-row instead -- which, via
+   align-items: stretch below, dragged every panel's height up to match that
+   suddenly very tall toolbar. Scrolling the row horizontally once it
+   doesn't fit is the same tradeoff most multi-panel IDEs make. */
 .workspace {
   display: flex;
   gap: 1rem;
   align-items: stretch;
+  overflow-x: auto;
 }
 
 /* File tree */
@@ -269,7 +277,7 @@
 
 .editor-wrapper {
   flex: 1;
-  min-width: 0;
+  min-width: 480px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg);
@@ -441,7 +449,14 @@
   font-weight: 600;
 }
 
+/* .btn:hover sets its own (much lighter) background, and a class + :hover
+   pseudo-class selector outranks a plain one-class selector on specificity
+   -- so without repeating the solid background here too, hovering over Run
+   or Stop would wash them out to that generic muted tint instead of just
+   brightening, making a primary action button look disabled right when
+   you're about to click it. */
 .btn-run:hover {
+  background: var(--accent);
   filter: brightness(1.08);
 }
 
@@ -453,6 +468,7 @@
 }
 
 .btn-stop:hover {
+  background: #e0554f;
   filter: brightness(1.08);
 }
 
@@ -662,6 +678,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -887,6 +905,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1000,6 +1020,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1032,6 +1054,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1103,6 +1127,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1124,6 +1150,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1220,6 +1248,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1654,6 +1684,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 
@@ -1704,6 +1736,8 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
+  height: fit-content;
+  max-height: 80vh;
   overflow: hidden;
 }
 

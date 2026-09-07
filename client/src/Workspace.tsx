@@ -167,7 +167,19 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     setOpenThread(null)
     setExplainRequest(null)
     setBreakpointPopover(null)
+    setFormatError(null)
   }, [activeId])
+
+  // A stale Format error would otherwise sit there describing code that no
+  // longer exists -- Format only re-checks when explicitly clicked again, so
+  // without this an error from five edits ago (or someone else's edit,
+  // since this is collaborative) keeps being shown as if it still applied.
+  useEffect(() => {
+    if (!ytext) return
+    const clearError = () => setFormatError(null)
+    ytext.observe(clearError)
+    return () => ytext.unobserve(clearError)
+  }, [ytext])
 
   const fileBreakpoints = activeId ? getBreakpointsForFile(activeId) : []
 

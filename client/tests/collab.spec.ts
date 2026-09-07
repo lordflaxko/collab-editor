@@ -587,6 +587,16 @@ test('an inline code comment thread syncs, replies, and resolves across clients'
   await contextB.close()
 })
 
+test('pressing Escape closes an open popover', async ({ page }) => {
+  await openNewProject(page, 'escape')
+
+  await page.locator('.cm-content').click()
+  await page.getByRole('button', { name: 'Comment', exact: true }).click()
+  await expect(page.locator('.comment-popover')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.comment-popover')).toHaveCount(0)
+})
+
 test('mentioning a present participant autocompletes and renders highlighted', async ({ browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
@@ -743,6 +753,43 @@ test('the Source Control panel shows an untracked file and its diff', async ({ p
 
   await page.getByRole('button', { name: 'History' }).click()
   await expect(page.locator('.sc-empty')).toContainText('No commits yet')
+})
+
+test('the Remote tab does not show a stray loading indicator left over from another tab', async ({
+  page,
+}) => {
+  await openNewProject(page, 'remoteload')
+
+  await page.getByRole('button', { name: 'Source Control' }).click()
+  await page.getByRole('button', { name: 'Remote' }).click()
+  await expect(page.locator('.sc-loading')).toHaveCount(0)
+  await expect(page.getByPlaceholder('https://github.com/owner/repo.git')).toBeVisible()
+})
+
+test('a stale Format error clears once the code changes, instead of describing code that no longer exists', async ({
+  page,
+}) => {
+  await openNewProject(page, 'formatstale')
+
+  await typeCode(page, 'function broken( {')
+  await page.getByRole('button', { name: 'Format' }).click()
+  await expect(page.locator('.format-error')).toBeVisible()
+
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.type('console.log(1)')
+  await expect(page.locator('.format-error')).toHaveCount(0)
+})
+
+test("the Run button's background stays solid while hovered, instead of fading to the generic hover tint", async ({
+  page,
+}) => {
+  await openNewProject(page, 'runhover')
+
+  const runButton = page.getByRole('button', { name: /^▶ Run/ })
+  await runButton.hover()
+  const color = await runButton.evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(color).toBe('rgb(170, 59, 255)')
 })
 
 test('committing clears the changes list and records history', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import type { Coords } from './CodeEditor'
 import { saveCustomTemplate } from './customTemplates'
+import { useEscapeToClose } from './useEscapeToClose'
 
 interface SaveTemplatePopoverProps {
   coords: Coords
@@ -10,6 +11,7 @@ interface SaveTemplatePopoverProps {
 }
 
 function SaveTemplatePopover({ coords, room, sessionToken, onClose }: SaveTemplatePopoverProps) {
+  useEscapeToClose(onClose)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

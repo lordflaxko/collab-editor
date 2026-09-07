@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type { Coords } from './CodeEditor'
 import { explainCode } from './aiChat'
+import { useEscapeToClose } from './useEscapeToClose'
 
 interface ExplainPopoverProps {
   coords: Coords
@@ -12,6 +13,7 @@ interface ExplainPopoverProps {
 }
 
 function ExplainPopover({ coords, code, languageId, room, sessionToken, onClose }: ExplainPopoverProps) {
+  useEscapeToClose(onClose)
   const [explanation, setExplanation] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)

@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import type { Coords } from './CodeEditor'
+import { useEscapeToClose } from './useEscapeToClose'
 
 interface BreakpointPopoverProps {
   coords: Coords
@@ -18,6 +19,7 @@ function BreakpointPopover({
   onRemove,
   onClose,
 }: BreakpointPopoverProps) {
+  useEscapeToClose(onClose)
   const [text, setText] = useState(initialExpressions.join(', '))
   const style = { top: coords.bottom + 6, left: coords.left } as CSSProperties
 

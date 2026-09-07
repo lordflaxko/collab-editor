@@ -316,7 +316,7 @@ function SourceControlPanel({ room, canEdit, sessionToken, onClose }: SourceCont
         )}
       </div>
       {error && <div className="format-error">{error}</div>}
-      {loading && <div className="sc-loading">Loading…</div>}
+      {loading && tab !== 'remote' && <div className="sc-loading">Loading…</div>}
       {tab === 'changes' && !loading && (
         <>
           <div className="sc-file-list">

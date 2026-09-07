@@ -4,6 +4,7 @@ import type { CommentThreadData } from './comments'
 import MentionInput from './MentionInput'
 import MentionText from './MentionText'
 import Reactions from './Reactions'
+import { useEscapeToClose } from './useEscapeToClose'
 
 interface NewThreadPopoverProps {
   mode: 'new'
@@ -32,6 +33,7 @@ function timeLabel(createdAt: number) {
 }
 
 function CommentPopover(props: CommentPopoverProps) {
+  useEscapeToClose(props.onClose)
   const [draft, setDraft] = useState('')
   const style = {
     top: props.coords.bottom + 6,
