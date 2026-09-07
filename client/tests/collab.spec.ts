@@ -1260,3 +1260,85 @@ test('requesting a review, viewing the diff against a base branch, and approving
   await contextA.close()
   await contextB.close()
 })
+
+test('the Go to Symbol modal finds a function defined in another file and jumps to it', async ({ page }) => {
+  await openNewProject(page, 'symsearch')
+
+  await typeCode(page, 'function computeTotal(a, b) { return a + b }')
+  await page.waitForTimeout(500)
+
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('other.js')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await typeCode(page, 'const unrelatedThing = 1')
+  await page.waitForTimeout(500)
+
+  await page.getByRole('button', { name: 'Go to Symbol' }).click()
+  await page.locator('.symbol-search-modal .text-input').fill('computeTotal')
+  await expect(page.locator('.symbol-result')).toContainText('main.js')
+
+  await page.locator('.symbol-result', { hasText: 'computeTotal' }).click()
+
+  // Jumping should switch back to main.js (where computeTotal lives) since
+  // we were on other.js when we searched.
+  await expect(page.locator('.file-tree .is-active')).toContainText('main.js')
+  await expect(page.locator('.symbol-search-modal')).not.toBeVisible()
+})
+
+test('Ctrl+click go-to-definition jumps the cursor from a call site to its function definition', async ({ page }) => {
+  await openNewProject(page, 'gotodef')
+
+  await typeCode(page, 'function helperFn() { return 1 }\nconst result = helperFn()')
+  // The symbol index re-parses on a 600ms debounce after edits (re-parsing
+  // every file on every keystroke would be wasteful), so this needs to
+  // clear that before Ctrl+click can find "helperFn" in it.
+  await page.waitForTimeout(900)
+
+  // The call on line 2, not the declaration on line 1. .cm-line's own
+  // bounding box spans the full editor width regardless of text length, so
+  // computing a click point from it lands well past the actual word --
+  // a Range over just the "helperFn" text node gives the real glyph bounds.
+  const rect = await page.evaluate(() => {
+    const line2 = document.querySelectorAll('.cm-line')[1]
+    const walker = document.createTreeWalker(line2, NodeFilter.SHOW_TEXT)
+    let node: Text | null
+    while ((node = walker.nextNode() as Text | null)) {
+      const idx = node.textContent?.indexOf('helperFn') ?? -1
+      if (idx !== -1) {
+        const range = document.createRange()
+        range.setStart(node, idx)
+        range.setEnd(node, idx + 'helperFn'.length)
+        const r = range.getBoundingClientRect()
+        return { x: r.x, y: r.y, width: r.width, height: r.height }
+      }
+    }
+    return null
+  })
+  // page.mouse.click doesn't support a `modifiers` option (that's only on
+  // locator.click) -- hold the key explicitly instead.
+  await page.keyboard.down('Control')
+  await page.mouse.click(rect!.x + rect!.width / 2, rect!.y + rect!.height / 2)
+  await page.keyboard.up('Control')
+
+  await expect(page.locator('.cm-activeLine')).toContainText('function helperFn')
+})
+
+test('autocomplete suggests a function defined in a different project file', async ({ page }) => {
+  await openNewProject(page, 'autocomp')
+
+  await typeCode(page, 'export function utilHelperUnique() { return 1 }')
+  // Same 600ms re-parse debounce as the go-to-definition test above.
+  await page.waitForTimeout(900)
+
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('other.js')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+
+  await typeCode(page, 'utilHelperUn')
+
+  await expect(
+    page.locator('.cm-tooltip-autocomplete .cm-completionLabel', { hasText: 'utilHelperUnique' }),
+  ).toBeVisible()
+})

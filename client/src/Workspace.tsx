@@ -19,6 +19,9 @@ import DatabasePanel from './DatabasePanel'
 import BreakpointPopover from './BreakpointPopover'
 import SaveTemplatePopover from './SaveTemplatePopover'
 import DebugPanel from './DebugPanel'
+import SymbolSearchModal from './SymbolSearchModal'
+import { useProjectSymbolIndex } from './useSymbolIndex'
+import type { ProjectSymbol } from './symbolIndex'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -94,6 +97,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   } | null>(null)
   const [saveTemplateCoords, setSaveTemplateCoords] = useState<Coords | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
+  const [symbolSearchOpen, setSymbolSearchOpen] = useState(false)
+  const [pendingJump, setPendingJump] = useState<{ fileId: string; pos: number } | null>(null)
+  const projectSymbols = useProjectSymbolIndex(ydoc, files)
   const threads = useComments(ydoc, activeId ?? '')
   const participants = usePresence(provider.awareness).map((p) => p.name)
 
@@ -159,6 +165,36 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const getAllFiles = useCallback(
     () => files.map((f) => ({ name: f.name, content: ydoc.getText(contentKeyFor(f.id)).toString() })),
     [ydoc, files],
+  )
+
+  const jumpToSymbol = useCallback(
+    (symbol: ProjectSymbol) => {
+      if (symbol.fileId === activeId) {
+        editorHandle?.jumpToPos(symbol.from)
+      } else {
+        setActiveId(symbol.fileId)
+        setPendingJump({ fileId: symbol.fileId, pos: symbol.from })
+      }
+    },
+    [activeId, editorHandle],
+  )
+
+  // Switching files remounts CodeEditor (it's keyed by activeId), so a
+  // cross-file jump has to wait for the new file's handle to come back
+  // through onReady before it has anywhere to dispatch the selection to.
+  useEffect(() => {
+    if (!pendingJump || !editorHandle || pendingJump.fileId !== activeId) return
+    editorHandle.jumpToPos(pendingJump.pos)
+    setPendingJump(null)
+  }, [pendingJump, editorHandle, activeId])
+
+  const handleGoToDefinition = useCallback(
+    (word: string) => {
+      const inSameFile = projectSymbols.find((s) => s.name === word && s.fileId === activeId)
+      const match = inSameFile ?? projectSymbols.find((s) => s.name === word)
+      if (match) jumpToSymbol(match)
+    },
+    [projectSymbols, activeId, jumpToSymbol],
   )
 
   // Stale coordinates/thread ids from the previous file would otherwise
@@ -379,6 +415,13 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             <button
               type="button"
               className="btn btn-small"
+              onClick={() => setSymbolSearchOpen(true)}
+            >
+              Go to Symbol
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
               onClick={() => setSourceControlOpen((v) => !v)}
             >
               Source Control
@@ -447,6 +490,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             onOpenThread={handleOpenThread}
             breakpoints={fileBreakpoints}
             onBreakpointGutterClick={handleBreakpointGutterClick}
+            onGoToDefinition={handleGoToDefinition}
+            projectSymbols={projectSymbols}
             onReady={setEditorHandle}
           />
         ) : (
@@ -566,6 +611,13 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           onToggleResolved={handleToggleResolved}
           onToggleReaction={handleToggleReaction}
           onClose={() => setOpenThread(null)}
+        />
+      )}
+      {symbolSearchOpen && (
+        <SymbolSearchModal
+          symbols={projectSymbols}
+          onJump={jumpToSymbol}
+          onClose={() => setSymbolSearchOpen(false)}
         />
       )}
     </div>

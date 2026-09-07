@@ -563,6 +563,72 @@
   width: 300px;
 }
 
+.symbol-search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.symbol-search-modal {
+  width: 480px;
+  max-width: 90vw;
+  max-height: 60vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.symbol-search-results {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.symbol-result {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.symbol-result.is-active {
+  background: var(--accent-bg, rgba(170, 59, 255, 0.1));
+}
+
+.symbol-kind {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text);
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.symbol-name {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--text-h);
+}
+
+.symbol-location {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cm-breakpoint-gutter {
   width: 0.9rem;
 }
