@@ -1342,3 +1342,84 @@ test('autocomplete suggests a function defined in a different project file', asy
     page.locator('.cm-tooltip-autocomplete .cm-completionLabel', { hasText: 'utilHelperUnique' }),
   ).toBeVisible()
 })
+
+// Runs against a real, disposable Docker container (same node:20-alpine
+// sandbox pattern as Install & Run) rather than mocking deployment -- the
+// point of this feature is that a real detached container gets started,
+// its port gets published, and our server actually proxies to it.
+test('deploying a static site serves it live, and Stop tears it down for real', async ({ page }) => {
+  await openNewProject(page, 'staticdeploy')
+
+  await page.locator('.file-tree-item', { hasText: 'main.js' }).dblclick()
+  await page.locator('.file-tree input.text-input').fill('index.html')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await typeCode(page, '<!doctype html><body><h1 id="marker">static deploy works</h1></body>')
+  await page.waitForTimeout(300)
+
+  await page.getByRole('button', { name: 'Deploy' }).click()
+  await page.locator('.deploy-panel').getByRole('button', { name: 'Deploy' }).click()
+  await expect(page.locator('.deploy-status')).toBeVisible({ timeout: 15000 })
+  const url = (await page.locator('.deploy-link').textContent())!.trim()
+
+  const liveResponse = await page.request.get(url)
+  expect(liveResponse.status()).toBe(200)
+  expect(await liveResponse.text()).toContain('static deploy works')
+
+  await page.getByRole('button', { name: 'Stop' }).click()
+  await expect(page.locator('.deploy-status')).not.toBeVisible()
+  const afterStop = await page.request.get(url)
+  expect(afterStop.status()).toBe(404)
+})
+
+test('deploying a Node server runs it in a real container and proxies to it live', async ({ page }) => {
+  await openNewProject(page, 'nodedeploy')
+
+  const NL = String.fromCharCode(10)
+  await typeCode(
+    page,
+    [
+      "const http = require('http')",
+      'http.createServer((req, res) => { res.end("hello from a deployed node server") }).listen(process.env.PORT || 3000)',
+    ].join(NL),
+  )
+  await page.waitForTimeout(300)
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('package.json')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await typeCode(page, '{"name":"deploy-test","version":"1.0.0","main":"main.js"}')
+  await page.waitForTimeout(300)
+
+  await page.getByRole('button', { name: 'Deploy' }).click()
+  await page.locator('.deploy-panel').getByRole('button', { name: 'Deploy' }).click()
+  await expect(page.locator('.deploy-status')).toBeVisible({ timeout: 20000 })
+  const url = (await page.locator('.deploy-link').textContent())!.trim()
+
+  // npm install (even with zero real dependencies) takes a moment inside
+  // the container, so poll rather than assuming the server is up instantly.
+  await expect
+    .poll(async () => (await page.request.get(url).catch(() => null))?.status(), { timeout: 20000 })
+    .toBe(200)
+  const response = await page.request.get(url)
+  expect(await response.text()).toBe('hello from a deployed node server')
+
+  await page.getByRole('button', { name: 'Stop' }).click()
+  await expect(page.locator('.deploy-status')).not.toBeVisible()
+})
+
+test('Deploy is rejected for a public project even for its owner', async ({ page }) => {
+  await openNewProject(page, 'deploypublic', 'public')
+
+  await page.locator('.file-tree-item', { hasText: 'main.js' }).dblclick()
+  await page.locator('.file-tree input.text-input').fill('index.html')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await typeCode(page, '<!doctype html><body>hi</body>')
+  await page.waitForTimeout(300)
+
+  await page.getByRole('button', { name: 'Deploy' }).click()
+  await page.locator('.deploy-panel').getByRole('button', { name: 'Deploy' }).click()
+
+  await expect(page.locator('.format-error')).toContainText('private projects', { timeout: 10000 })
+})

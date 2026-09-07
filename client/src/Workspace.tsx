@@ -16,6 +16,7 @@ import ReviewPanel from './ReviewPanel'
 import ExplainPopover from './ExplainPopover'
 import APITestPanel from './APITestPanel'
 import DatabasePanel from './DatabasePanel'
+import DeployPanel from './DeployPanel'
 import BreakpointPopover from './BreakpointPopover'
 import SaveTemplatePopover from './SaveTemplatePopover'
 import DebugPanel from './DebugPanel'
@@ -87,6 +88,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [reviewOpen, setReviewOpen] = useState(false)
   const [apiTestOpen, setApiTestOpen] = useState(false)
   const [databaseOpen, setDatabaseOpen] = useState(false)
+  const [deployOpen, setDeployOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const [explainRequest, setExplainRequest] = useState<{ coords: Coords; code: string } | null>(null)
   const { getForFile: getBreakpointsForFile, setBreakpoint, removeBreakpoint } = useBreakpoints()
@@ -459,6 +461,11 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
               </button>
             )}
             {canEdit && (
+              <button type="button" className="btn btn-small" onClick={() => setDeployOpen((v) => !v)}>
+                Deploy
+              </button>
+            )}
+            {canEdit && (
               <button
                 type="button"
                 className="btn btn-small"
@@ -552,6 +559,14 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
       {apiTestOpen && <APITestPanel onClose={() => setApiTestOpen(false)} />}
       {databaseOpen && (
         <DatabasePanel room={room} sessionToken={token} onClose={() => setDatabaseOpen(false)} />
+      )}
+      {deployOpen && (
+        <DeployPanel
+          room={room}
+          sessionToken={token}
+          getAllFiles={getAllFiles}
+          onClose={() => setDeployOpen(false)}
+        />
       )}
       {debugOpen && (
         <DebugPanel

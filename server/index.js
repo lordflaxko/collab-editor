@@ -21,6 +21,7 @@ const testRunner = require('./testRunner')
 const aiAssistant = require('./aiAssistant')
 const customTemplates = require('./customTemplates')
 const database = require('./database')
+const deploy = require('./deploy')
 const { readRoomFiles } = require('./gitSync')
 const { logActivity } = require('./activityLog')
 
@@ -51,6 +52,18 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     res.end()
+    return
+  }
+
+  // Public, unauthenticated, and not an exact-URL match like every other
+  // route below -- a deploy preview is meant to work as a live link anyone
+  // can open, and it serves whatever paths the deployed app itself defines.
+  if (req.url.startsWith('/preview/')) {
+    const rest = req.url.slice('/preview/'.length)
+    const slash = rest.indexOf('/')
+    const token = slash === -1 ? rest : rest.slice(0, slash)
+    const subPath = slash === -1 ? '' : rest.slice(slash)
+    deploy.serveDeployment(token, subPath, req, res)
     return
   }
 
@@ -547,6 +560,48 @@ const server = http.createServer(async (req, res) => {
       const result = await database.runReadOnlyQuery(connectionString, query)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/deploy/start') {
+    try {
+      const { room, sessionToken, files } = await readJsonBody(req)
+      const { project } = projects.requireMinRole(sessionToken, room, 'editor')
+      // Runs npm install with real internet access for a Node deploy (same
+      // supply-chain exposure as Install & Run), and for either kind the
+      // result is a live, unauthenticated URL anyone with the link can hit
+      // -- both reasons to keep this restricted to private projects.
+      if (project.visibility !== 'private') {
+        throw new Error('Deploying is only available for private projects')
+      }
+      const result = await deploy.startDeployment(room, files)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/deploy/stop') {
+    try {
+      const { room, sessionToken, deployToken } = await readJsonBody(req)
+      projects.requireMinRole(sessionToken, room, 'editor')
+      const dep = deploy.getDeployment(deployToken)
+      // Only the project the deployment actually belongs to may stop it --
+      // otherwise knowing any live token (they're unguessable, but a
+      // teammate could paste one into chat) would let an editor on an
+      // unrelated project tear it down.
+      if (dep && dep.projectId === room) {
+        await deploy.stopDeployment(deployToken)
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: String(err.message ?? err) }))
