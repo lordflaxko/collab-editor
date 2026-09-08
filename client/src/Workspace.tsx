@@ -666,6 +666,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           sessionToken={token}
           breakpoints={resolvedBreakpoints}
           onDebugWithAI={debugWithAI}
+          isDark={isDark}
         />
       </div>
       {chatOpen && (

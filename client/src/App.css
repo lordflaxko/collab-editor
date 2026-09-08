@@ -844,6 +844,13 @@ select:focus {
   flex: 1;
 }
 
+.terminal-view {
+  padding: 0.5rem 0.6rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  height: 220px;
+}
+
 .run-output {
   padding: 0.6rem 0.75rem;
   border-top: 1px solid var(--border);

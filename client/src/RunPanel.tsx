@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LanguageConfig } from './languages'
 import { injectLogpoints, parseDebugLine, MARKER_START, type ResolvedBreakpoint } from './logpoints'
+import TerminalView, { type TerminalHandle } from './TerminalView'
 
 interface OutputSegment {
   stream: 'stdout' | 'stderr' | 'stdin'
@@ -35,9 +36,12 @@ interface RunPanelProps {
   sessionToken: string | null
   breakpoints: ResolvedBreakpoint[]
   onDebugWithAI: (question: string) => void
+  isDark: boolean
 }
 
 const INSTALL_RUN_FORBIDDEN_CODE = 4003
+const BACKSPACE_CODES = new Set([8, 127])
+const CTRL_C_CODE = 3
 
 function RunPanel({
   language,
@@ -48,6 +52,7 @@ function RunPanel({
   sessionToken,
   breakpoints,
   onDebugWithAI,
+  isDark,
 }: RunPanelProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [output, setOutput] = useState<OutputSegment[]>([])
@@ -60,6 +65,12 @@ function RunPanel({
   // line-aligned, so a logpoint marker can straddle two chunks -- this holds
   // whatever trailing partial line hasn't been resolved into a full line yet.
   const stdoutBufferRef = useRef('')
+  const terminalRef = useRef<TerminalHandle>(null)
+  // The line currently being composed by typing directly into the visible
+  // terminal -- a separate, from-scratch input path from the hidden
+  // .run-stdin field below (kept for accessibility: a canvas-rendered
+  // terminal has no text for a screen reader to read or focus to land on).
+  const terminalLineRef = useRef('')
 
   useEffect(() => {
     return () => {
@@ -68,6 +79,7 @@ function RunPanel({
   }, [])
 
   function appendOutput(segment: OutputSegment) {
+    terminalRef.current?.write(segment.text)
     setOutput((current) => {
       const last = current[current.length - 1]
       // Coalesce consecutive same-stream chunks so fast output doesn't turn
@@ -121,14 +133,20 @@ function RunPanel({
     else appendOutput({ stream: 'stdout', text: leftover })
   }
 
-  function handleRun() {
+  function resetForNewRun() {
     wsRef.current?.close()
     setOutput([])
     setExitInfo(null)
     setError(null)
     setDebugHits([])
     stdoutBufferRef.current = ''
+    terminalLineRef.current = ''
+    terminalRef.current?.clear()
     setStatus('running')
+  }
+
+  function handleRun() {
+    resetForNewRun()
 
     const ws = new WebSocket('ws://localhost:1234/__run')
     wsRef.current = ws
@@ -147,16 +165,21 @@ function RunPanel({
         flushStdoutBuffer()
         setExitInfo({ code: msg.code, signal: msg.signal, wallTimeMs: msg.wallTimeMs })
         setStatus((current) => (current === 'stopped' ? current : 'done'))
+        terminalRef.current?.write(
+          `\r\n[exit code ${msg.code ?? '—'}${msg.signal ? ` (${msg.signal})` : ''}]\r\n`,
+        )
       } else if (msg.type === 'error') {
         flushStdoutBuffer()
         setError(msg.message)
         setStatus('done')
+        terminalRef.current?.write(`\r\n[error] ${msg.message}\r\n`)
       }
     }
     ws.onerror = () => {
       flushStdoutBuffer()
       setError('Could not reach the execution service')
       setStatus('done')
+      terminalRef.current?.write('\r\n[error] Could not reach the execution service\r\n')
     }
   }
 
@@ -167,13 +190,7 @@ function RunPanel({
   // sandbox than Piston's package-less, read-only Run. Breakpoints/logpoints
   // don't apply here -- that stays a plain-Run-only feature.
   function handleInstallAndRun() {
-    wsRef.current?.close()
-    setOutput([])
-    setExitInfo(null)
-    setError(null)
-    setDebugHits([])
-    stdoutBufferRef.current = ''
-    setStatus('running')
+    resetForNewRun()
 
     const startedAt = Date.now()
     const params = new URLSearchParams({ room, token: sessionToken ?? '' })
@@ -190,20 +207,27 @@ function RunPanel({
       } else if (msg.type === 'exit') {
         setExitInfo({ code: msg.code, signal: msg.signal, wallTimeMs: Date.now() - startedAt })
         setStatus((current) => (current === 'stopped' ? current : 'done'))
+        terminalRef.current?.write(
+          `\r\n[exit code ${msg.code ?? '—'}${msg.signal ? ` (${msg.signal})` : ''}]\r\n`,
+        )
       } else if (msg.type === 'error') {
         setError(msg.message)
         setStatus('done')
+        terminalRef.current?.write(`\r\n[error] ${msg.message}\r\n`)
       }
     }
     ws.onclose = (event) => {
       if (event.code === INSTALL_RUN_FORBIDDEN_CODE) {
-        setError('Install & Run needs editor access on a private project.')
+        const message = 'Install & Run needs editor access on a private project.'
+        setError(message)
         setStatus('done')
+        terminalRef.current?.write(`\r\n[error] ${message}\r\n`)
       }
     }
     ws.onerror = () => {
       setError('Could not reach the install-and-run service')
       setStatus('done')
+      terminalRef.current?.write('\r\n[error] Could not reach the install-and-run service\r\n')
     }
   }
 
@@ -211,6 +235,7 @@ function RunPanel({
     wsRef.current?.send(JSON.stringify({ type: 'stop' }))
     wsRef.current?.close()
     setStatus('stopped')
+    terminalRef.current?.write('\r\n[stopped]\r\n')
   }
 
   function submitStdin() {
@@ -218,6 +243,38 @@ function RunPanel({
     wsRef.current.send(JSON.stringify({ type: 'stdin', data: `${stdinDraft}\n` }))
     appendOutput({ stream: 'stdin', text: `${stdinDraft}\n` })
     setStdinDraft('')
+  }
+
+  // Typing directly into the visible terminal -- a minimal line editor since
+  // the sandboxed processes on the other end read stdin a line at a time
+  // (Piston and the install-and-run container are both plain pipes, not a
+  // real pty), so there's nothing for raw per-keystroke bytes to do until
+  // Enter. Unlike submitStdin above, this echoes locally as you type instead
+  // of only appearing once you submit, which is what makes it feel like a
+  // terminal rather than a text box. Character codes (rather than escape-
+  // sequence literals) identify the control keys, which is more robust than
+  // matching against '\x7f'/'\x03' string literals.
+  function handleTerminalData(data: string) {
+    if (status !== 'running' || !wsRef.current) return
+    for (const ch of data) {
+      const code = ch.charCodeAt(0)
+      if (ch === '\r' || ch === '\n') {
+        const line = terminalLineRef.current
+        terminalLineRef.current = ''
+        terminalRef.current?.write('\r\n')
+        wsRef.current.send(JSON.stringify({ type: 'stdin', data: `${line}\n` }))
+      } else if (BACKSPACE_CODES.has(code)) {
+        if (terminalLineRef.current.length > 0) {
+          terminalLineRef.current = terminalLineRef.current.slice(0, -1)
+          terminalRef.current?.write('\b \b')
+        }
+      } else if (code === CTRL_C_CODE) {
+        handleStop()
+      } else if (code >= 32 || ch === '\t') {
+        terminalLineRef.current += ch
+        terminalRef.current?.write(ch)
+      }
+    }
   }
 
   const running = status === 'running'
@@ -251,7 +308,7 @@ function RunPanel({
           </button>
         )}
         <input
-          className="text-input run-stdin"
+          className="text-input run-stdin sr-only"
           value={stdinDraft}
           onChange={(e) => setStdinDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -259,6 +316,7 @@ function RunPanel({
           }}
           placeholder={running ? 'Type input and press Enter…' : 'stdin (available while running)'}
           disabled={!running}
+          aria-label="Program input"
         />
       </div>
       {debugHits.length > 0 && (
@@ -276,12 +334,15 @@ function RunPanel({
           })}
         </div>
       )}
+      <TerminalView ref={terminalRef} isDark={isDark} onData={handleTerminalData} />
       {(output.length > 0 || error || exitInfo) && (
         <div className="run-output">
           {error && <div className="run-output-error">{error}</div>}
-          {output.length === 0 && !error && <div className="run-output-empty">(no output yet)</div>}
+          {output.length === 0 && !error && (
+            <div className="run-output-empty sr-only">(no output yet)</div>
+          )}
           {output.map((segment, i) => (
-            <pre key={i} className={`run-output-${segment.stream}`}>
+            <pre key={i} className={`run-output-${segment.stream} sr-only`}>
               {segment.text}
             </pre>
           ))}
