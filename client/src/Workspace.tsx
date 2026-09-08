@@ -21,8 +21,8 @@ import BreakpointPopover from './BreakpointPopover'
 import SaveTemplatePopover from './SaveTemplatePopover'
 import DebugPanel from './DebugPanel'
 import SymbolSearchModal from './SymbolSearchModal'
+import TextSearchModal from './TextSearchModal'
 import { useProjectSymbolIndex } from './useSymbolIndex'
-import type { ProjectSymbol } from './symbolIndex'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
 import { canFormat, formatCode } from './formatting'
@@ -100,6 +100,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [saveTemplateCoords, setSaveTemplateCoords] = useState<Coords | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [symbolSearchOpen, setSymbolSearchOpen] = useState(false)
+  const [textSearchOpen, setTextSearchOpen] = useState(false)
   const [pendingJump, setPendingJump] = useState<{ fileId: string; pos: number } | null>(null)
   const projectSymbols = useProjectSymbolIndex(ydoc, files)
   const threads = useComments(ydoc, activeId ?? '')
@@ -169,13 +170,19 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     [ydoc, files],
   )
 
+  const getAllFilesForSearch = useCallback(
+    () =>
+      files.map((f) => ({ id: f.id, name: f.name, content: ydoc.getText(contentKeyFor(f.id)).toString() })),
+    [ydoc, files],
+  )
+
   const jumpToSymbol = useCallback(
-    (symbol: ProjectSymbol) => {
-      if (symbol.fileId === activeId) {
-        editorHandle?.jumpToPos(symbol.from)
+    (target: { fileId: string; from: number }) => {
+      if (target.fileId === activeId) {
+        editorHandle?.jumpToPos(target.from)
       } else {
-        setActiveId(symbol.fileId)
-        setPendingJump({ fileId: symbol.fileId, pos: symbol.from })
+        setActiveId(target.fileId)
+        setPendingJump({ fileId: target.fileId, pos: target.from })
       }
     },
     [activeId, editorHandle],
@@ -421,6 +428,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               Go to Symbol
             </button>
+            <button type="button" className="btn btn-small" onClick={() => setTextSearchOpen(true)}>
+              Find in Files
+            </button>
             <button
               type="button"
               className="btn btn-small"
@@ -633,6 +643,13 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           symbols={projectSymbols}
           onJump={jumpToSymbol}
           onClose={() => setSymbolSearchOpen(false)}
+        />
+      )}
+      {textSearchOpen && (
+        <TextSearchModal
+          getAllFiles={getAllFilesForSearch}
+          onJump={jumpToSymbol}
+          onClose={() => setTextSearchOpen(false)}
         />
       )}
     </div>

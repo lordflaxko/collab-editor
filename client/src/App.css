@@ -629,6 +629,21 @@
   text-overflow: ellipsis;
 }
 
+/* Find in Files reuses the Go to Symbol modal's layout, but with the
+   location fixed-width and first, and the snippet (not a bare identifier)
+   taking the remaining space. */
+.text-search-location {
+  margin-left: 0;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.text-search-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cm-breakpoint-gutter {
   width: 0.9rem;
 }

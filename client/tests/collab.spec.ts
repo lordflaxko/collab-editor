@@ -1423,3 +1423,27 @@ test('Deploy is rejected for a public project even for its owner', async ({ page
 
   await expect(page.locator('.format-error')).toContainText('private projects', { timeout: 10000 })
 })
+
+test('Find in Files finds a match in another file and jumps to it', async ({ page }) => {
+  await openNewProject(page, 'textsearch')
+
+  await typeCode(page, 'const notImportant = 1')
+  await page.waitForTimeout(300)
+
+  await page.getByRole('button', { name: '+ New' }).click()
+  await page.getByPlaceholder('filename.ext').fill('other.js')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await typeCode(page, 'const specialNeedleValue = 42')
+  await page.waitForTimeout(300)
+
+  await page.getByRole('button', { name: 'Find in Files' }).click()
+  await page.locator('.text-search-modal .text-input').fill('specialNeedle')
+  await expect(page.locator('.symbol-result')).toContainText('other.js:1')
+  await expect(page.locator('.symbol-result')).toContainText('specialNeedleValue')
+
+  await page.locator('.symbol-result', { hasText: 'specialNeedle' }).click()
+
+  await expect(page.locator('.file-tree .is-active')).toContainText('other.js')
+  await expect(page.locator('.text-search-modal')).not.toBeVisible()
+})
