@@ -58,7 +58,7 @@ function DatabasePanel({ room, sessionToken, onClose }: DatabasePanelProps) {
         />
         <button
           type="button"
-          className="btn btn-small"
+          className="btn btn-small btn-primary"
           onClick={handleRun}
           disabled={running || !connectionString.trim() || !query.trim()}
         >

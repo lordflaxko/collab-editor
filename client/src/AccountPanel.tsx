@@ -48,7 +48,7 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
     return (
       <button
         type="button"
-        className="btn"
+        className="btn btn-primary"
         onClick={() => {
           setMode('login')
           setOpen(true)
@@ -60,38 +60,43 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
   }
 
   return (
-    <form className="account-panel account-form" onSubmit={submit}>
-      <input
-        className="text-input"
-        value={usernameInput}
-        onChange={(e) => setUsernameInput(e.target.value)}
-        placeholder="Username"
-        aria-label="Account username"
-        autoFocus
-      />
-      <input
-        className="text-input"
-        type="password"
-        value={passwordInput}
-        onChange={(e) => setPasswordInput(e.target.value)}
-        placeholder="Password"
-        aria-label="Account password"
-      />
-      <button type="submit" className="btn" disabled={submitting}>
-        {mode === 'signup' ? 'Sign up' : 'Log in'}
-      </button>
-      <button
-        type="button"
-        className="btn btn-small"
-        onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
-      >
-        {mode === 'signup' ? 'Have an account?' : 'Sign up instead'}
-      </button>
-      <button type="button" className="btn btn-small" onClick={() => setOpen(false)}>
-        Cancel
-      </button>
-      {error && <span className="account-error">{error}</span>}
-    </form>
+    <div className="account-form-anchor">
+      <form className="account-form" onSubmit={submit}>
+        <h3 className="account-form-title">{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h3>
+        <input
+          className="text-input"
+          value={usernameInput}
+          onChange={(e) => setUsernameInput(e.target.value)}
+          placeholder="Username"
+          aria-label="Account username"
+          autoFocus
+        />
+        <input
+          className="text-input"
+          type="password"
+          value={passwordInput}
+          onChange={(e) => setPasswordInput(e.target.value)}
+          placeholder="Password"
+          aria-label="Account password"
+        />
+        {error && <span className="account-error">{error}</span>}
+        <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {mode === 'signup' ? 'Sign up' : 'Log in'}
+        </button>
+        <div className="account-form-footer">
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
+          >
+            {mode === 'signup' ? 'Have an account? Log in' : "Don't have an account? Sign up"}
+          </button>
+          <button type="button" className="link-button" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 

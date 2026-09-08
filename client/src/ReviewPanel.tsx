@@ -118,7 +118,7 @@ function ReviewPanel({ ydoc, room, user, canEdit, onClose }: ReviewPanelProps) {
                 </select>
                 <button
                   type="button"
-                  className="btn btn-small"
+                  className="btn btn-small btn-primary"
                   onClick={handleRequest}
                   disabled={!baseBranch}
                 >

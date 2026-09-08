@@ -97,7 +97,7 @@ function AIChatPanel({
           placeholder="Ask about this code…"
           disabled={asking}
         />
-        <button type="submit" className="btn btn-small" disabled={asking || !draft.trim()}>
+        <button type="submit" className="btn btn-small btn-primary" disabled={asking || !draft.trim()}>
           {asking ? 'Asking…' : 'Ask'}
         </button>
       </form>

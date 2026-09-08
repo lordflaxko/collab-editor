@@ -31,7 +31,7 @@ function TestPanel({ room, onDebugWithAI, onClose }: TestPanelProps) {
       <div className="chat-panel-header">
         <span>Tests</span>
         <div>
-          <button type="button" className="btn btn-small" onClick={handleRun} disabled={running}>
+          <button type="button" className="btn btn-small btn-primary" onClick={handleRun} disabled={running}>
             {running ? 'Running…' : 'Run Tests'}
           </button>
           <button type="button" className="btn btn-small" onClick={onClose}>

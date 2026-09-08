@@ -161,7 +161,7 @@ function APITestPanel({ onClose }: APITestPanelProps) {
             placeholder="Request body (raw text or JSON)"
           />
         )}
-        <button type="button" className="btn btn-small" onClick={handleSend} disabled={sending || !url.trim()}>
+        <button type="button" className="btn btn-small btn-primary" onClick={handleSend} disabled={sending || !url.trim()}>
           {sending ? 'Sending…' : 'Send'}
         </button>
         {error && <div className="format-error">{error}</div>}

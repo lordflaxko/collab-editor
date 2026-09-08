@@ -346,7 +346,7 @@ function SourceControlPanel({ room, canEdit, sessionToken, onClose }: SourceCont
               />
               <button
                 type="button"
-                className="btn btn-small"
+                className="btn btn-small btn-primary"
                 onClick={handleCommit}
                 disabled={committing || !commitMessage.trim()}
               >

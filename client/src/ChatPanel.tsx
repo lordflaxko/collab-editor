@@ -149,7 +149,7 @@ function ChatPanel({ ydoc, user, room, participants, onClose }: ChatPanelProps) 
           participants={participants}
           placeholder="Message the room…"
         />
-        <button type="submit" className="btn btn-small" disabled={!draft.trim()}>
+        <button type="submit" className="btn btn-small btn-primary" disabled={!draft.trim()}>
           Send
         </button>
       </form>

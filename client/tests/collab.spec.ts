@@ -12,7 +12,7 @@ function uniqueUsername(label: string) {
 async function signUp(page: Page, username: string) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Log in' }).click()
-  await page.getByRole('button', { name: 'Sign up instead' }).click()
+  await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
@@ -87,7 +87,7 @@ async function inviteAndJoin(
 
 test('a logged-out visitor sees a sign-in prompt at the dashboard', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Sign in above to create or manage your projects.')).toBeVisible()
+  await expect(page.getByText('Sign in to create or manage your projects.')).toBeVisible()
 })
 
 test('a project appears in the dashboard list and can be reopened from there', async ({ page }) => {
@@ -680,7 +680,7 @@ test('signing up creates an account and shows the signed-in state', async ({ pag
   await page.goto('/')
 
   await page.getByRole('button', { name: 'Log in' }).click()
-  await page.getByRole('button', { name: 'Sign up instead' }).click()
+  await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
@@ -695,7 +695,7 @@ test('a wrong password is rejected and a correct one logs back in after logout',
   await page.goto('/')
 
   await page.getByRole('button', { name: 'Log in' }).click()
-  await page.getByRole('button', { name: 'Sign up instead' }).click()
+  await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
@@ -789,7 +789,7 @@ test("the Run button's background stays solid while hovered, instead of fading t
   const runButton = page.getByRole('button', { name: /^▶ Run/ })
   await runButton.hover()
   const color = await runButton.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(color).toBe('rgb(170, 59, 255)')
+  expect(color).toBe('rgb(124, 58, 237)')
 })
 
 test('committing clears the changes list and records history', async ({ page }) => {

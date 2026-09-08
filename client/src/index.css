@@ -1,48 +1,75 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
+  --text: #64607a;
+  --text-h: #16141f;
+  --bg: #ffffff;
+  --page-bg: #f7f7fb;
+  --border: #e6e5ee;
+  --border-strong: #d3d1e0;
+  --code-bg: #f3f2fa;
+  --surface-hover: #f6f5fb;
+
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-text: #ffffff;
+  --accent-bg: rgba(124, 58, 237, 0.08);
+  --accent-border: rgba(124, 58, 237, 0.4);
+
+  --danger: #e0554f;
+  --danger-bg: rgba(224, 85, 79, 0.08);
+  --success: #1a9c6c;
+
   --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  --shadow-sm: 0 1px 2px rgba(20, 16, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(20, 16, 40, 0.06), 0 1px 3px rgba(20, 16, 40, 0.06);
+  --shadow-lg: 0 20px 40px rgba(20, 16, 40, 0.1), 0 4px 10px rgba(20, 16, 40, 0.05);
+  --shadow: var(--shadow-md);
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  font: 15px/1.5 var(--sans);
+  letter-spacing: 0;
   color-scheme: light dark;
   color: var(--text);
-  background: var(--bg);
+  background: var(--page-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
+    --text: #9b98ad;
+    --text-h: #f4f3f9;
+    --bg: #1a1a23;
+    --page-bg: #121218;
+    --border: #2c2c38;
+    --border-strong: #3c3c4c;
+    --code-bg: #22222d;
+    --surface-hover: #232330;
+
+    --accent: #a78bfa;
+    --accent-hover: #bda4fc;
+    --accent-text: #16141f;
+    --accent-bg: rgba(167, 139, 250, 0.14);
+    --accent-border: rgba(167, 139, 250, 0.45);
+
+    --danger-bg: rgba(224, 85, 79, 0.14);
+    --success: #34c98f;
+
     --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+    --shadow: var(--shadow-md);
   }
 
   :root:not([data-theme='light']) #social .button-icon {
@@ -51,17 +78,30 @@
 }
 
 :root[data-theme='dark'] {
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --bg: #16171d;
-  --border: #2e303a;
-  --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
+  --text: #9b98ad;
+  --text-h: #f4f3f9;
+  --bg: #1a1a23;
+  --page-bg: #121218;
+  --border: #2c2c38;
+  --border-strong: #3c3c4c;
+  --code-bg: #22222d;
+  --surface-hover: #232330;
+
+  --accent: #a78bfa;
+  --accent-hover: #bda4fc;
+  --accent-text: #16141f;
+  --accent-bg: rgba(167, 139, 250, 0.14);
+  --accent-border: rgba(167, 139, 250, 0.45);
+
+  --danger-bg: rgba(224, 85, 79, 0.14);
+  --success: #34c98f;
+
   --social-bg: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow: var(--shadow-md);
 }
 
 :root[data-theme='dark'] #social .button-icon {

@@ -64,63 +64,65 @@ function App() {
   const openProject = useCallback((id: string) => navigate(`/${id}`), [navigate])
 
   return (
-    <div className="app">
-      <div className="app-header">
-        <h1>Collab Editor</h1>
-      </div>
-      <div className="doc-bar">
-        <input
-          className="text-input"
-          value={accountUsername ?? displayName}
-          onChange={(e) => handleNameChange(e.target.value)}
-          placeholder="Your name"
-          aria-label="Your name"
-          disabled={accountUsername !== null}
-          title={accountUsername !== null ? 'Signed in: your account name is used instead' : undefined}
-          style={{ '--dot-color': userColor } as CSSProperties}
-        />
-        <AccountPanel
-          username={accountUsername}
-          error={accountError}
-          onSignup={accountSignup}
-          onLogin={accountLogin}
-          onLogout={accountLogout}
-        />
-        <NotificationBell token={accountToken} onOpenRoom={openProject} />
-        <button type="button" className="btn" onClick={goToDashboard}>
-          Dashboard
+    <div className="app-shell">
+      <header className="app-nav">
+        <button type="button" className="app-brand" onClick={goToDashboard}>
+          <span className="app-brand-mark">◆</span>
+          Collab Editor
         </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={cyclePreference}
-          title="Cycle theme: Auto → Light → Dark"
-        >
-          Theme: {THEME_LABEL[themePreference]}
-        </button>
-      </div>
+        <div className="app-nav-controls">
+          <input
+            className="text-input app-name-input"
+            value={accountUsername ?? displayName}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="Your name"
+            aria-label="Your name"
+            disabled={accountUsername !== null}
+            title={accountUsername !== null ? 'Signed in: your account name is used instead' : undefined}
+            style={{ '--dot-color': userColor } as CSSProperties}
+          />
+          <NotificationBell token={accountToken} onOpenRoom={openProject} />
+          <button
+            type="button"
+            className="btn"
+            onClick={cyclePreference}
+            title="Cycle theme: Auto → Light → Dark"
+          >
+            Theme: {THEME_LABEL[themePreference]}
+          </button>
+          <AccountPanel
+            username={accountUsername}
+            error={accountError}
+            onSignup={accountSignup}
+            onLogin={accountLogin}
+            onLogout={accountLogout}
+          />
+        </div>
+      </header>
 
-      {accountChecking ? (
-        <div className="sc-loading">Loading…</div>
-      ) : route.type === 'dashboard' ? (
-        accountUsername && accountToken ? (
-          <Dashboard token={accountToken} username={accountUsername} onOpenProject={openProject} />
+      <main className="app-main">
+        {accountChecking ? (
+          <div className="sc-loading">Loading…</div>
+        ) : route.type === 'dashboard' ? (
+          accountUsername && accountToken ? (
+            <Dashboard token={accountToken} username={accountUsername} onOpenProject={openProject} />
+          ) : (
+            <div className="unlock-gate">
+              <p>Sign in to create or manage your projects.</p>
+            </div>
+          )
+        ) : route.type === 'join' ? (
+          <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
         ) : (
-          <div className="unlock-gate">
-            <p>Sign in above to create or manage your projects.</p>
-          </div>
-        )
-      ) : route.type === 'join' ? (
-        <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
-      ) : (
-        <ProjectView
-          projectId={route.id}
-          token={accountToken}
-          user={user}
-          isDark={isDark}
-          onGoToDashboard={goToDashboard}
-        />
-      )}
+          <ProjectView
+            projectId={route.id}
+            token={accountToken}
+            user={user}
+            isDark={isDark}
+            onGoToDashboard={goToDashboard}
+          />
+        )}
+      </main>
     </div>
   )
 }

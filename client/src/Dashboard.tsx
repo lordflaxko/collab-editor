@@ -143,7 +143,7 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
               </optgroup>
             )}
           </select>
-          <button type="submit" className="btn" disabled={creating || !name.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={creating || !name.trim()}>
             {creating ? 'Creating…' : 'Create'}
           </button>
         </form>
@@ -181,7 +181,7 @@ function Dashboard({ token, username, onOpenProject }: DashboardProps) {
             onChange={(e) => setInviteInput(e.target.value)}
             placeholder="Paste an invite link or token"
           />
-          <button type="submit" className="btn" disabled={joining || !inviteInput.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={joining || !inviteInput.trim()}>
             {joining ? 'Joining…' : 'Join'}
           </button>
         </form>
