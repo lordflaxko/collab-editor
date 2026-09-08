@@ -4,13 +4,20 @@ const crypto = require('crypto')
 
 const STORE_PATH = path.join(__dirname, 'users.json')
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+const RESET_TTL_MS = 30 * 60 * 1000 // 30 minutes
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,20}$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Sessions are kept in memory only: restarting the server logs everyone out.
 // That's an acceptable trade-off for now -- there's no security reason a
 // session needs to outlive the process, and it avoids having to persist and
 // garbage-collect a session store on disk.
 const sessions = new Map()
+
+// Reset tokens are similarly in-memory and short-lived -- a reset link is
+// only ever meant to be useful for a few minutes after it's requested, so
+// nothing is lost by not persisting these across a restart.
+const resetTokens = new Map()
 
 function loadStore() {
   try {
@@ -43,18 +50,29 @@ function createSession(username) {
   return { token, username }
 }
 
-function signup(username, password) {
+function findUsernameByEmail(store, email) {
+  const target = email.trim().toLowerCase()
+  return Object.keys(store).find((name) => store[name].email?.toLowerCase() === target) ?? null
+}
+
+function signup(username, password, email) {
   if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
     throw new Error('Username must be 3-20 characters: letters, numbers, _ or -')
   }
   if (typeof password !== 'string' || password.length < 8) {
     throw new Error('Password must be at least 8 characters')
   }
+  if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
+    throw new Error('A valid email address is required')
+  }
   const store = loadStore()
   if (store[username]) {
     throw new Error('That username is already taken')
   }
-  store[username] = { passwordHash: hashPassword(password), createdAt: Date.now() }
+  if (findUsernameByEmail(store, email)) {
+    throw new Error('That email is already registered')
+  }
+  store[username] = { passwordHash: hashPassword(password), email: email.trim(), createdAt: Date.now() }
   saveStore(store)
   return createSession(username)
 }
@@ -88,4 +106,55 @@ function userExists(username) {
   return Boolean(store[username])
 }
 
-module.exports = { signup, login, getSessionUser, destroySession, userExists }
+// Returns null (rather than throwing) when the email has no matching
+// account, so the HTTP route can always respond with the same generic
+// message -- telling a caller "no account uses that email" would let
+// someone probe which emails are registered.
+function requestPasswordReset(email) {
+  if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
+    throw new Error('A valid email address is required')
+  }
+  const store = loadStore()
+  const username = findUsernameByEmail(store, email)
+  if (!username) return null
+  const token = crypto.randomBytes(32).toString('hex')
+  resetTokens.set(token, { username, expiresAt: Date.now() + RESET_TTL_MS })
+  return { username, email: store[username].email, token }
+}
+
+function resetPassword(token, newPassword) {
+  const entry = resetTokens.get(token)
+  if (!entry || entry.expiresAt < Date.now()) {
+    resetTokens.delete(token)
+    throw new Error('This reset link is invalid or has expired')
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters')
+  }
+  const store = loadStore()
+  const record = store[entry.username]
+  if (!record) {
+    resetTokens.delete(token)
+    throw new Error('This reset link is invalid or has expired')
+  }
+  record.passwordHash = hashPassword(newPassword)
+  saveStore(store)
+  resetTokens.delete(token)
+  // A password reset should log out every existing session for the
+  // account, not just add a new one alongside whatever session(s) someone
+  // else might already be holding with the old password.
+  for (const [sessionToken, session] of sessions) {
+    if (session.username === entry.username) sessions.delete(sessionToken)
+  }
+  return createSession(entry.username)
+}
+
+module.exports = {
+  signup,
+  login,
+  getSessionUser,
+  destroySession,
+  userExists,
+  requestPasswordReset,
+  resetPassword,
+}

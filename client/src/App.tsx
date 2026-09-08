@@ -3,6 +3,7 @@ import ProjectView from './ProjectView'
 import Dashboard from './Dashboard'
 import JoinInvite from './JoinInvite'
 import LandingPage from './LandingPage'
+import ResetPasswordPage from './ResetPasswordPage'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
 import { useAccount } from './account'
@@ -13,20 +14,28 @@ import './App.css'
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' } as const
 
 type Route =
-  { type: 'dashboard' } | { type: 'join'; inviteToken: string } | { type: 'project'; id: string }
+  | { type: 'dashboard' }
+  | { type: 'join'; inviteToken: string }
+  | { type: 'reset-password'; token: string }
+  | { type: 'project'; id: string }
 
-function parseRoute(pathname: string): Route {
+function parseRoute(pathname: string, search: string): Route {
   const trimmed = pathname.slice(1)
   if (trimmed === '') return { type: 'dashboard' }
+  if (trimmed === 'reset-password') {
+    return { type: 'reset-password', token: new URLSearchParams(search).get('token') ?? '' }
+  }
   if (trimmed.startsWith('join/'))
     return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
   return { type: 'project', id: trimmed }
 }
 
 function App() {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname))
+  const [route, setRoute] = useState<Route>(() =>
+    parseRoute(window.location.pathname, window.location.search),
+  )
   const [accountFormOpen, setAccountFormOpen] = useState(false)
-  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup'>('login')
+  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup' | 'forgot'>('login')
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
   const { preference: themePreference, isDark, cyclePreference } = useTheme()
@@ -38,6 +47,8 @@ function App() {
     signup: accountSignup,
     login: accountLogin,
     logout: accountLogout,
+    requestPasswordReset: accountRequestPasswordReset,
+    resetPassword: accountResetPassword,
   } = useAccount()
   const user = useMemo(
     () => ({
@@ -53,7 +64,7 @@ function App() {
   }
 
   useEffect(() => {
-    const onPopState = () => setRoute(parseRoute(window.location.pathname))
+    const onPopState = () => setRoute(parseRoute(window.location.pathname, window.location.search))
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
@@ -64,7 +75,7 @@ function App() {
   // real navigation.
   const navigate = useCallback((path: string) => {
     window.history.pushState(null, '', path)
-    setRoute(parseRoute(path))
+    setRoute(parseRoute(path, window.location.search))
   }, [])
 
   const goToDashboard = useCallback(() => navigate('/'), [navigate])
@@ -114,13 +125,16 @@ function App() {
             onModeChange={setAccountFormMode}
             onSignup={accountSignup}
             onLogin={accountLogin}
+            onRequestPasswordReset={accountRequestPasswordReset}
             onLogout={accountLogout}
           />
         </div>
       </header>
 
       <main className="app-main">
-        {accountChecking ? (
+        {route.type === 'reset-password' ? (
+          <ResetPasswordPage token={route.token} onReset={accountResetPassword} onDone={goToDashboard} />
+        ) : accountChecking ? (
           <div className="sc-loading">Loading…</div>
         ) : route.type === 'dashboard' ? (
           accountUsername && accountToken ? (

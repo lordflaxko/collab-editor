@@ -14,6 +14,7 @@ async function signUp(page: Page, username: string) {
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
+  await page.getByLabel('Account email').fill(`${username}@example.com`)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
@@ -682,6 +683,7 @@ test('signing up creates an account and shows the signed-in state', async ({ pag
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
+  await page.getByLabel('Account email').fill(`${username}@example.com`)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
 
@@ -697,6 +699,7 @@ test('a wrong password is rejected and a correct one logs back in after logout',
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
   await page.getByLabel('Account username').fill(username)
+  await page.getByLabel('Account email').fill(`${username}@example.com`)
   await page.getByLabel('Account password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Sign up' }).click()
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
@@ -720,6 +723,59 @@ test('a signed-in session survives a page reload', async ({ page }) => {
   await signUp(page, username)
   await page.reload()
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+})
+
+test('signing up with an email already registered to another account is rejected', async ({ page }) => {
+  const first = uniqueUsername('emailowner')
+  await signUp(page, first)
+  await page.getByRole('button', { name: 'Log out' }).click()
+
+  const second = uniqueUsername('emailthief')
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: "Don't have an account? Sign up" }).click()
+  await page.getByLabel('Account username').fill(second)
+  await page.getByLabel('Account email').fill(`${first}@example.com`)
+  await page.getByLabel('Account password').fill('correct-horse-battery')
+  await page.getByRole('button', { name: 'Sign up' }).click()
+  await expect(page.getByText('That email is already registered')).toBeVisible()
+})
+
+test('requesting a password reset for an unregistered email shows the same generic confirmation as a real one', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Forgot password?' }).click()
+  await page.getByLabel('Account email').fill('definitely-not-registered@example.com')
+  await page.getByRole('button', { name: 'Send reset link' }).click()
+  await expect(
+    page.getByText("If an account exists for that email, we've sent a link to reset your password."),
+  ).toBeVisible()
+})
+
+test('requesting a password reset for a registered email surfaces a clear error when email sending is not configured', async ({
+  page,
+}) => {
+  const username = uniqueUsername('resetreq')
+  await signUp(page, username)
+  await page.getByRole('button', { name: 'Log out' }).click()
+
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('button', { name: 'Forgot password?' }).click()
+  await page.getByLabel('Account email').fill(`${username}@example.com`)
+  await page.getByRole('button', { name: 'Send reset link' }).click()
+  await expect(page.getByText('not configured')).toBeVisible()
+})
+
+test('the reset-password page rejects a missing or invalid token', async ({ page }) => {
+  await page.goto('/reset-password')
+  await expect(page.getByText('This reset link is missing its token')).toBeVisible()
+
+  await page.goto('/reset-password?token=not-a-real-token')
+  await page.getByLabel('New password', { exact: true }).fill('a-brand-new-password')
+  await page.getByLabel('Confirm new password').fill('a-brand-new-password')
+  await page.getByRole('button', { name: 'Reset password' }).click()
+  await expect(page.getByText('This reset link is invalid or has expired')).toBeVisible()
 })
 
 test("a signed-in account's username is used as the collaborator identity", async ({ browser }) => {

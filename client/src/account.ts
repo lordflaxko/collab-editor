@@ -24,15 +24,38 @@ export function useAccount() {
       .finally(() => setChecking(false))
   }, [])
 
-  const signup = useCallback(async (name: string, password: string) => {
+  const signup = useCallback(async (name: string, password: string, email: string) => {
     setError(null)
     try {
-      const data = await postJson('/auth/signup', { username: name, password })
+      const data = await postJson('/auth/signup', { username: name, password, email })
       localStorage.setItem(TOKEN_KEY, data.token)
       setUsername(data.username)
       setToken(data.token)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed')
+      throw err
+    }
+  }, [])
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    setError(null)
+    try {
+      await postJson('/auth/request-reset', { email })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not request a password reset')
+      throw err
+    }
+  }, [])
+
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    setError(null)
+    try {
+      const data = await postJson('/auth/reset-password', { token, password })
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setUsername(data.username)
+      setToken(data.token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset password')
       throw err
     }
   }, [])
@@ -58,5 +81,5 @@ export function useAccount() {
     if (stored) postJson('/auth/logout', { token: stored }).catch(() => {})
   }, [])
 
-  return { username, token, checking, error, signup, login, logout }
+  return { username, token, checking, error, signup, login, logout, requestPasswordReset, resetPassword }
 }

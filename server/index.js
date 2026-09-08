@@ -15,6 +15,7 @@ const { handleDebugConnection } = require('./debugWs')
 const { handlePackageRunConnection } = require('./packageRunWs')
 const { formatCode } = require('./format')
 const accounts = require('./accounts')
+const mailer = require('./email')
 const notifications = require('./notifications')
 const projects = require('./projects')
 const git = require('./git')
@@ -28,6 +29,7 @@ const { readRoomFiles } = require('./gitSync')
 const { logActivity } = require('./activityLog')
 
 const port = process.env.PORT || 1234
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -71,8 +73,46 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/auth/signup') {
     try {
-      const { username, password } = await readJsonBody(req)
-      const session = accounts.signup(username, password)
+      const { username, password, email } = await readJsonBody(req)
+      const session = accounts.signup(username, password, email)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(session))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/auth/request-reset') {
+    try {
+      const { email } = await readJsonBody(req)
+      const result = accounts.requestPasswordReset(email)
+      if (result) {
+        const resetLink = `${CLIENT_URL}/reset-password?token=${result.token}`
+        await mailer.sendEmail(
+          result.email,
+          'Reset your Collab Editor password',
+          `<p>Someone requested a password reset for your Collab Editor account.</p>` +
+            `<p><a href="${resetLink}">${resetLink}</a></p>` +
+            `<p>This link expires in 30 minutes. If you didn't request this, you can ignore this email.</p>`,
+        )
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      // Deliberately the same response whether or not the email matched an
+      // account -- see accounts.requestPasswordReset for why.
+      res.end(JSON.stringify({ ok: true }))
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/auth/reset-password') {
+    try {
+      const { token, password } = await readJsonBody(req)
+      const session = accounts.resetPassword(token, password)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(session))
     } catch (err) {

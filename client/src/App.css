@@ -236,6 +236,23 @@
   color: var(--danger);
 }
 
+.account-form-note {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.reset-password-page {
+  display: flex;
+  justify-content: center;
+  padding-top: 2rem;
+}
+
+.reset-password-form {
+  width: 100%;
+  max-width: 22rem;
+}
+
 .text-input,
 select {
   padding: 0.5rem 0.7rem;
