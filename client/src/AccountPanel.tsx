@@ -3,14 +3,26 @@ import { useState, type FormEvent } from 'react'
 interface AccountPanelProps {
   username: string | null
   error: string | null
+  open: boolean
+  mode: 'login' | 'signup'
+  onOpenChange: (open: boolean) => void
+  onModeChange: (mode: 'login' | 'signup') => void
   onLogin: (username: string, password: string) => Promise<void>
   onSignup: (username: string, password: string) => Promise<void>
   onLogout: () => void
 }
 
-function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountPanelProps) {
-  const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+function AccountPanel({
+  username,
+  error,
+  open,
+  mode,
+  onOpenChange,
+  onModeChange,
+  onLogin,
+  onSignup,
+  onLogout,
+}: AccountPanelProps) {
   const [usernameInput, setUsernameInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -35,7 +47,7 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
       } else {
         await onLogin(usernameInput, passwordInput)
       }
-      setOpen(false)
+      onOpenChange(false)
       setPasswordInput('')
     } catch {
       // error is surfaced via the `error` prop
@@ -50,8 +62,8 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
         type="button"
         className="btn btn-primary"
         onClick={() => {
-          setMode('login')
-          setOpen(true)
+          onModeChange('login')
+          onOpenChange(true)
         }}
       >
         Log in
@@ -62,7 +74,9 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
   return (
     <div className="account-form-anchor">
       <form className="account-form" onSubmit={submit}>
-        <h3 className="account-form-title">{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h3>
+        <h3 className="account-form-title">
+          {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+        </h3>
         <input
           className="text-input"
           value={usernameInput}
@@ -87,11 +101,11 @@ function AccountPanel({ username, error, onLogin, onSignup, onLogout }: AccountP
           <button
             type="button"
             className="link-button"
-            onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
+            onClick={() => onModeChange(mode === 'signup' ? 'login' : 'signup')}
           >
             {mode === 'signup' ? 'Have an account? Log in' : "Don't have an account? Sign up"}
           </button>
-          <button type="button" className="link-button" onClick={() => setOpen(false)}>
+          <button type="button" className="link-button" onClick={() => onOpenChange(false)}>
             Cancel
           </button>
         </div>

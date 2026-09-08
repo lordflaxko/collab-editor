@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import ProjectView from './ProjectView'
 import Dashboard from './Dashboard'
 import JoinInvite from './JoinInvite'
+import LandingPage from './LandingPage'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
 import { useAccount } from './account'
@@ -11,17 +12,21 @@ import './App.css'
 
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' } as const
 
-type Route = { type: 'dashboard' } | { type: 'join'; inviteToken: string } | { type: 'project'; id: string }
+type Route =
+  { type: 'dashboard' } | { type: 'join'; inviteToken: string } | { type: 'project'; id: string }
 
 function parseRoute(pathname: string): Route {
   const trimmed = pathname.slice(1)
   if (trimmed === '') return { type: 'dashboard' }
-  if (trimmed.startsWith('join/')) return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
+  if (trimmed.startsWith('join/'))
+    return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
   return { type: 'project', id: trimmed }
 }
 
 function App() {
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname))
+  const [accountFormOpen, setAccountFormOpen] = useState(false)
+  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup'>('login')
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
   const { preference: themePreference, isDark, cyclePreference } = useTheme()
@@ -35,7 +40,10 @@ function App() {
     logout: accountLogout,
   } = useAccount()
   const user = useMemo(
-    () => ({ name: accountUsername ?? (displayName.trim() || 'Anonymous'), color: userColor }),
+    () => ({
+      name: accountUsername ?? (displayName.trim() || 'Anonymous'),
+      color: userColor,
+    }),
     [accountUsername, displayName, userColor],
   )
 
@@ -63,6 +71,11 @@ function App() {
 
   const openProject = useCallback((id: string) => navigate(`/${id}`), [navigate])
 
+  const openSignup = useCallback(() => {
+    setAccountFormMode('signup')
+    setAccountFormOpen(true)
+  }, [])
+
   return (
     <div className="app-shell">
       <header className="app-nav">
@@ -78,7 +91,9 @@ function App() {
             placeholder="Your name"
             aria-label="Your name"
             disabled={accountUsername !== null}
-            title={accountUsername !== null ? 'Signed in: your account name is used instead' : undefined}
+            title={
+              accountUsername !== null ? 'Signed in: your account name is used instead' : undefined
+            }
             style={{ '--dot-color': userColor } as CSSProperties}
           />
           <NotificationBell token={accountToken} onOpenRoom={openProject} />
@@ -93,6 +108,10 @@ function App() {
           <AccountPanel
             username={accountUsername}
             error={accountError}
+            open={accountFormOpen}
+            mode={accountFormMode}
+            onOpenChange={setAccountFormOpen}
+            onModeChange={setAccountFormMode}
             onSignup={accountSignup}
             onLogin={accountLogin}
             onLogout={accountLogout}
@@ -105,11 +124,13 @@ function App() {
           <div className="sc-loading">Loading…</div>
         ) : route.type === 'dashboard' ? (
           accountUsername && accountToken ? (
-            <Dashboard token={accountToken} username={accountUsername} onOpenProject={openProject} />
+            <Dashboard
+              token={accountToken}
+              username={accountUsername}
+              onOpenProject={openProject}
+            />
           ) : (
-            <div className="unlock-gate">
-              <p>Sign in to create or manage your projects.</p>
-            </div>
+            <LandingPage onGetStarted={openSignup} />
           )
         ) : route.type === 'join' ? (
           <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
