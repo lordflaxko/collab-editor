@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "dotenv": "^17.4.2",
     "pg": "^8.23.0",
     "simple-git": "^3.36.0",
     "ws": "^8.21.3",

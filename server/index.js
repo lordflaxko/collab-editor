@@ -2,6 +2,8 @@ const path = require('path')
 const http = require('http')
 const { WebSocketServer } = require('ws')
 
+require('dotenv').config({ path: path.join(__dirname, '.env') })
+
 // y-websocket/bin/utils reads YPERSISTENCE at require-time, so it must be
 // set before the require() call below.
 process.env.YPERSISTENCE = process.env.YPERSISTENCE || path.join(__dirname, 'data')

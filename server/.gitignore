@@ -1,5 +1,6 @@
 node_modules
 *.log
+.env
 data/
 users.json
 notifications.json

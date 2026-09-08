@@ -1,8 +1,8 @@
 const crypto = require('crypto')
 const { getLoadedLiveDoc } = require('./yjsDoc')
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5'
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 const MAX_CONTEXT_CHARS = 8000
 // Bounds how much of the room's own aiChat history gets replayed back to the
 // API as conversation context, so the prompt (and its cost) doesn't grow
@@ -16,9 +16,9 @@ function truncate(text) {
 }
 
 function requireApiKey() {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    throw new Error('The AI assistant is not configured (ANTHROPIC_API_KEY is not set on the server)')
+    throw new Error('The AI assistant is not configured (GEMINI_API_KEY is not set on the server)')
   }
   return apiKey
 }
@@ -26,21 +26,27 @@ function requireApiKey() {
 // Shared by askAssistant (persisted room chat) and explainCode (a private,
 // one-shot request) -- both just need "send this system prompt and message
 // history, get the reply text back" from the same underlying API.
-async function callAnthropic(apiKey, systemPrompt, messages) {
-  const response = await fetch(ANTHROPIC_API_URL, {
+// `messages` uses Gemini's own role names ('user' / 'model') rather than
+// Anthropic's ('user' / 'assistant') -- callers are responsible for mapping
+// their own roles before calling this.
+async function callGemini(apiKey, systemPrompt, messages) {
+  const response = await fetch(GEMINI_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'x-goog-api-key': apiKey,
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: systemPrompt, messages }),
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
+    }),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
     throw new Error(data.error?.message || `AI request failed (${response.status})`)
   }
-  return (data.content ?? []).map((block) => block.text ?? '').join('')
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  return parts.map((part) => part.text ?? '').join('')
 }
 
 // Lives in the project's own Y.Doc (same pattern as chat/comments/activity),
@@ -81,11 +87,11 @@ async function askAssistant(room, question, actor, activeFileId) {
   const history = chat
     .toArray()
     .slice(-HISTORY_MESSAGES)
-    .map((entry) => ({ role: entry.role === 'assistant' ? 'assistant' : 'user', content: entry.text }))
+    .map((entry) => ({ role: entry.role === 'assistant' ? 'model' : 'user', content: entry.text }))
 
   let text
   try {
-    text = await callAnthropic(apiKey, systemPrompt, history)
+    text = await callGemini(apiKey, systemPrompt, history)
   } catch (err) {
     chat.push([
       {
@@ -122,7 +128,7 @@ async function explainCode(code, languageId) {
 
   const message = `Explain this ${languageId} code:\n\n\`\`\`${languageId}\n${truncate(code.trim())}\n\`\`\``
 
-  return callAnthropic(apiKey, systemPrompt, [{ role: 'user', content: message }])
+  return callGemini(apiKey, systemPrompt, [{ role: 'user', content: message }])
 }
 
 module.exports = { askAssistant, explainCode }
