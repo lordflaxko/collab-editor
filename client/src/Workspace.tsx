@@ -418,9 +418,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             >
               Explain
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setChatOpen((v) => !v)}>
-              Chat
-            </button>
             <button
               type="button"
               className="btn btn-small"
@@ -431,50 +428,91 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             <button type="button" className="btn btn-small" onClick={() => setTextSearchOpen(true)}>
               Find in Files
             </button>
+
+            <span className="toolbar-divider" aria-hidden="true" />
+
             <button
               type="button"
-              className="btn btn-small"
+              className={`btn btn-small${chatOpen ? ' btn-toggle-active' : ''}`}
+              onClick={() => setChatOpen((v) => !v)}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              className={`btn btn-small${sourceControlOpen ? ' btn-toggle-active' : ''}`}
               onClick={() => setSourceControlOpen((v) => !v)}
             >
               Source Control
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className={`btn btn-small${reviewOpen ? ' btn-toggle-active' : ''}`}
+              onClick={() => setReviewOpen((v) => !v)}
+            >
+              Review
+            </button>
+            <button
+              type="button"
+              className={`btn btn-small${activityOpen ? ' btn-toggle-active' : ''}`}
               onClick={() => setActivityOpen((v) => !v)}
             >
               Activity
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setTestsOpen((v) => !v)}>
+
+            <span className="toolbar-divider" aria-hidden="true" />
+
+            <button
+              type="button"
+              className={`btn btn-small${testsOpen ? ' btn-toggle-active' : ''}`}
+              onClick={() => setTestsOpen((v) => !v)}
+            >
               Tests
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className={`btn btn-small${aiChatOpen ? ' btn-toggle-active' : ''}`}
               onClick={() => setAiChatOpen((v) => !v)}
             >
               AI Assistant
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setReviewOpen((v) => !v)}>
-              Review
-            </button>
-            <button type="button" className="btn btn-small" onClick={() => setApiTestOpen((v) => !v)}>
+            <button
+              type="button"
+              className={`btn btn-small${apiTestOpen ? ' btn-toggle-active' : ''}`}
+              onClick={() => setApiTestOpen((v) => !v)}
+            >
               API Test
             </button>
             {canEdit && (
               <button
                 type="button"
-                className="btn btn-small"
+                className={`btn btn-small${databaseOpen ? ' btn-toggle-active' : ''}`}
                 onClick={() => setDatabaseOpen((v) => !v)}
               >
                 Database
               </button>
             )}
             {canEdit && (
-              <button type="button" className="btn btn-small" onClick={() => setDeployOpen((v) => !v)}>
+              <button
+                type="button"
+                className={`btn btn-small${deployOpen ? ' btn-toggle-active' : ''}`}
+                onClick={() => setDeployOpen((v) => !v)}
+              >
                 Deploy
               </button>
             )}
+            {canEdit && (
+              <button
+                type="button"
+                className={`btn btn-small${debugOpen ? ' btn-toggle-active' : ''}`}
+                onClick={() => setDebugOpen((v) => !v)}
+              >
+                Debug
+              </button>
+            )}
+
+            <span className="toolbar-divider" aria-hidden="true" />
+
             {canEdit && (
               <button
                 type="button"
@@ -485,11 +523,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
                 }}
               >
                 Save as Template
-              </button>
-            )}
-            {canEdit && (
-              <button type="button" className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>
-                Debug
               </button>
             )}
           </div>

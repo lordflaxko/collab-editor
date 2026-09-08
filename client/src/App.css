@@ -117,6 +117,23 @@
   border-radius: var(--radius-sm);
 }
 
+/* Marks a toolbar toggle button whose panel is currently open, so the
+   editor toolbar reads as a set of switches with visible state rather than
+   a wall of identical-looking one-shot actions. */
+.btn-toggle-active,
+.btn-toggle-active:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-hover);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.3rem;
+  background: var(--border);
+  margin: 0 0.15rem;
+}
+
 /* Filled, accent-colored treatment for the one or two most important
    actions in a given context (sign up, create project, send, commit) --
    plain .btn is deliberately neutral so it doesn't compete for attention.
