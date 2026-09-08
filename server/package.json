@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "jszip": "^3.10.1",
     "pg": "^8.23.0",
     "simple-git": "^3.36.0",
     "ws": "^8.21.3",

@@ -1518,3 +1518,56 @@ test('Find in Files finds a match in another file and jumps to it', async ({ pag
   await expect(page.locator('.file-tree .is-active')).toContainText('other.js')
   await expect(page.locator('.text-search-modal')).not.toBeVisible()
 })
+
+test('Download .zip exports the project as a real zip file containing its current content', async ({
+  page,
+}) => {
+  await openNewProject(page, 'zipexport')
+  await typeCode(page, "console.log('exported')")
+  await page.waitForTimeout(400)
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('link', { name: 'Download .zip' }).click(),
+  ])
+  expect(download.suggestedFilename()).toBe('Project zipexport.zip')
+  const savePath = await download.path()
+  expect(savePath).toBeTruthy()
+
+  const projectId = new URL(page.url()).pathname.slice(1)
+  const token = await page.evaluate(() => localStorage.getItem('account-token'))
+  const response = await page.request.get(
+    `http://localhost:1234/export/${projectId}?token=${token}`,
+  )
+  expect(response.status()).toBe(200)
+  expect(response.headers()['content-type']).toBe('application/zip')
+  expect(response.headers()['content-disposition']).toContain('Project zipexport.zip')
+  const body = await response.body()
+  expect(body.byteLength).toBeGreaterThan(0)
+})
+
+test('exporting a private project is rejected for someone without access, but a public project can be exported by anyone', async ({
+  browser,
+}) => {
+  const ownerContext = await browser.newContext()
+  const strangerContext = await browser.newContext()
+  const ownerPage = await ownerContext.newPage()
+  const strangerPage = await strangerContext.newPage()
+
+  await openNewProject(ownerPage, 'zipprivate', 'private')
+  const privateId = new URL(ownerPage.url()).pathname.slice(1)
+
+  await strangerPage.goto('/')
+  const strangerResponse = await strangerPage.request.get(
+    `http://localhost:1234/export/${privateId}`,
+  )
+  expect(strangerResponse.status()).toBe(400)
+  expect(await strangerResponse.json()).toMatchObject({ error: expect.stringContaining('access') })
+
+  await ownerPage.getByRole('button', { name: 'Log out' }).click()
+  await openNewProject(ownerPage, 'zippublic', 'public')
+  const publicId = new URL(ownerPage.url()).pathname.slice(1)
+  const anonResponse = await strangerPage.request.get(`http://localhost:1234/export/${publicId}`)
+  expect(anonResponse.status()).toBe(200)
+  expect(anonResponse.headers()['content-type']).toBe('application/zip')
+})

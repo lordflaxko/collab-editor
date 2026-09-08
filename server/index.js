@@ -26,10 +26,19 @@ const customTemplates = require('./customTemplates')
 const database = require('./database')
 const deploy = require('./deploy')
 const { readRoomFiles } = require('./gitSync')
+const { buildProjectZip } = require('./zipExport')
 const { logActivity } = require('./activityLog')
 
 const port = process.env.PORT || 1234
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
+
+// Used only to build the suggested download filename -- browsers reject or
+// mangle a Content-Disposition filename containing quotes, path separators,
+// or other characters outside this safe set.
+function sanitizeFilename(name) {
+  const cleaned = name.replace(/[^a-zA-Z0-9 _-]/g, '').trim()
+  return cleaned === '' ? 'project' : cleaned
+}
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -50,7 +59,7 @@ function readJsonBody(req) {
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
   if (req.method === 'OPTIONS') {
@@ -68,6 +77,32 @@ const server = http.createServer(async (req, res) => {
     const token = slash === -1 ? rest : rest.slice(0, slash)
     const subPath = slash === -1 ? '' : rest.slice(slash)
     deploy.serveDeployment(token, subPath, req, res)
+    return
+  }
+
+  // GET, not POST -- this is meant to be opened as a plain download link
+  // (an <a href>), which can't attach a token in a header or JSON body the
+  // way every other route here does, so it rides along as a query param
+  // instead. Read-only and gated by the same access check viewing the
+  // project itself uses (so a public project's viewers can export it too,
+  // same as they can already read its files in the editor).
+  if (req.method === 'GET' && req.url.startsWith('/export/')) {
+    try {
+      const url = new URL(req.url, `http://${req.headers.host}`)
+      const room = decodeURIComponent(url.pathname.slice('/export/'.length))
+      const sessionToken = url.searchParams.get('token') ?? ''
+      const { project } = projects.getProjectForRequester(sessionToken, room)
+      const files = await readRoomFiles(room)
+      const zipBuffer = await buildProjectZip(files)
+      res.writeHead(200, {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${sanitizeFilename(project.name)}.zip"`,
+      })
+      res.end(zipBuffer)
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: String(err.message ?? err) }))
+    }
     return
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Workspace from './Workspace'
 import MembersPanel from './MembersPanel'
 import { getProject, type Project, type Role } from './projects'
+import { SERVER_URL } from './api'
 
 interface ProjectViewProps {
   projectId: string
@@ -59,6 +60,12 @@ function ProjectView({ projectId, token, user, isDark, onGoToDashboard }: Projec
         >
           Copy link
         </button>
+        <a
+          className="btn"
+          href={`${SERVER_URL}/export/${encodeURIComponent(project.id)}?token=${encodeURIComponent(token ?? '')}`}
+        >
+          Download .zip
+        </a>
         <button type="button" className="btn" onClick={() => setMembersOpen((v) => !v)}>
           Members
         </button>
