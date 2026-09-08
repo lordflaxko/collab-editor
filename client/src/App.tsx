@@ -4,6 +4,7 @@ import Dashboard from './Dashboard'
 import JoinInvite from './JoinInvite'
 import LandingPage from './LandingPage'
 import ResetPasswordPage from './ResetPasswordPage'
+import PublicGallery from './PublicGallery'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
 import { useAccount } from './account'
@@ -17,6 +18,7 @@ type Route =
   | { type: 'dashboard' }
   | { type: 'join'; inviteToken: string }
   | { type: 'reset-password'; token: string }
+  | { type: 'gallery' }
   | { type: 'project'; id: string }
 
 function parseRoute(pathname: string, search: string): Route {
@@ -25,6 +27,7 @@ function parseRoute(pathname: string, search: string): Route {
   if (trimmed === 'reset-password') {
     return { type: 'reset-password', token: new URLSearchParams(search).get('token') ?? '' }
   }
+  if (trimmed === 'explore') return { type: 'gallery' }
   if (trimmed.startsWith('join/'))
     return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
   return { type: 'project', id: trimmed }
@@ -82,6 +85,8 @@ function App() {
 
   const openProject = useCallback((id: string) => navigate(`/${id}`), [navigate])
 
+  const goToGallery = useCallback(() => navigate('/explore'), [navigate])
+
   const openSignup = useCallback(() => {
     setAccountFormMode('signup')
     setAccountFormOpen(true)
@@ -95,6 +100,9 @@ function App() {
           Collab Editor
         </button>
         <div className="app-nav-controls">
+          <button type="button" className="btn" onClick={goToGallery}>
+            Explore
+          </button>
           <input
             className="text-input app-name-input"
             value={accountUsername ?? displayName}
@@ -148,6 +156,8 @@ function App() {
           )
         ) : route.type === 'join' ? (
           <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
+        ) : route.type === 'gallery' ? (
+          <PublicGallery onOpenProject={openProject} />
         ) : (
           <ProjectView
             projectId={route.id}

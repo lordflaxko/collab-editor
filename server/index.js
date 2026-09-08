@@ -295,6 +295,13 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'POST' && req.url === '/projects/public') {
+    const list = projects.listPublicProjects()
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ projects: list }))
+    return
+  }
+
   if (req.method === 'POST' && req.url === '/projects/get') {
     try {
       const { token, projectId } = await readJsonBody(req)

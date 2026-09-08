@@ -157,6 +157,23 @@ function myProjects(token) {
     .sort((a, b) => a.createdAt - b.createdAt)
 }
 
+// Deliberately unauthenticated (matches a public project already being
+// viewable by anonymous visitors) and deliberately trimmed -- an anonymous
+// browser has no business seeing a public project's full member/role map,
+// just enough to decide whether to open it.
+function listPublicProjects() {
+  return Object.values(loadProjects())
+    .filter((p) => p.visibility === 'public')
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      ownerUsername: p.ownerUsername,
+      createdAt: p.createdAt,
+      memberCount: Object.keys(p.members).length,
+    }))
+}
+
 function createInviteLink(token, projectId, role) {
   const username = requireUser(token)
   const project = getProject(projectId)
@@ -263,6 +280,7 @@ module.exports = {
   requireMinRole,
   roleFor,
   myProjects,
+  listPublicProjects,
   createInviteLink,
   joinViaInvite,
   listMembers,

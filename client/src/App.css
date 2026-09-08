@@ -76,6 +76,7 @@
 }
 
 .btn {
+  display: inline-block;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -84,6 +85,7 @@
   font-size: 0.85rem;
   font-weight: 500;
   font-family: var(--sans);
+  text-decoration: none;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease,
@@ -2166,6 +2168,44 @@ select:focus {
   color: var(--text-h);
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+/* Public project gallery */
+
+.gallery-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.gallery-card {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.gallery-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.gallery-card-meta {
+  font-size: 0.8rem;
+  color: var(--text);
 }
 
 .project-name {

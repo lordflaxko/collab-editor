@@ -199,6 +199,33 @@ test('a public project can be viewed by an anonymous visitor without logging in'
   await anonCtx.close()
 })
 
+test('the public gallery lists a public project and lets an anonymous visitor open it, but never lists a private one', async ({
+  browser,
+}) => {
+  const ownerCtx = await browser.newContext()
+  const ownerPage = await ownerCtx.newPage()
+  const publicName = `Gallery Public ${uniqueUsername('')}`
+  const privateName = `Gallery Private ${uniqueUsername('')}`
+  await openNewProject(ownerPage, 'gallerypub', 'public')
+  await ownerPage.getByRole('button', { name: 'Dashboard' }).first().click()
+  await createProject(ownerPage, publicName, 'public')
+  await ownerPage.getByRole('button', { name: 'Dashboard' }).first().click()
+  await createProject(ownerPage, privateName, 'private')
+
+  const anonCtx = await browser.newContext()
+  const anonPage = await anonCtx.newPage()
+  await anonPage.goto('/explore')
+  await expect(anonPage.getByText(publicName)).toBeVisible()
+  await expect(anonPage.getByText(privateName)).not.toBeVisible()
+
+  await anonPage.getByRole('button', { name: publicName }).click()
+  await expect(anonPage.getByText('Connected', { exact: true })).toBeVisible()
+  await expect(anonPage.locator('.role-badge')).toContainText('viewer')
+
+  await ownerCtx.close()
+  await anonCtx.close()
+})
+
 test('a viewer has no edit controls and the server rejects any edit they attempt', async ({ browser }) => {
   const ownerCtx = await browser.newContext()
   const ownerPage = await ownerCtx.newPage()

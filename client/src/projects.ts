@@ -24,6 +24,18 @@ export function myProjects(token: string): Promise<{ projects: Project[] }> {
   return postJson('/projects/mine', { token })
 }
 
+export interface PublicProjectSummary {
+  id: string
+  name: string
+  ownerUsername: string
+  createdAt: number
+  memberCount: number
+}
+
+export function listPublicProjects(): Promise<{ projects: PublicProjectSummary[] }> {
+  return postJson('/projects/public', {})
+}
+
 export function getProject(
   token: string | null,
   projectId: string,
