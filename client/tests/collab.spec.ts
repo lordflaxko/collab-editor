@@ -789,7 +789,22 @@ test("the Run button's background stays solid while hovered, instead of fading t
   const runButton = page.getByRole('button', { name: /^▶ Run/ })
   await runButton.hover()
   const color = await runButton.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(color).toBe('rgb(124, 58, 237)')
+  // Compares against the live --accent token rather than a hardcoded RGB
+  // literal -- this assertion is about specificity (solid accent, not the
+  // washed-out .btn:hover tint), and pinning a literal color made it break
+  // on every palette change even though the behavior it guards never did.
+  const accent = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+  )
+  const expected = await page.evaluate((c) => {
+    const probe = document.createElement('div')
+    probe.style.color = c
+    document.body.appendChild(probe)
+    const rgb = getComputedStyle(probe).color
+    probe.remove()
+    return rgb
+  }, accent)
+  expect(color).toBe(expected)
 })
 
 test('committing clears the changes list and records history', async ({ page }) => {

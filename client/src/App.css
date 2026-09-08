@@ -130,6 +130,9 @@
   background: var(--accent);
   color: var(--accent-text);
   font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
 }
 
 .btn-primary:hover {
@@ -579,6 +582,9 @@ select:focus {
   background: var(--accent);
   color: var(--accent-text);
   font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
 }
 
 /* .btn:hover sets its own (much lighter) background, and a class + :hover

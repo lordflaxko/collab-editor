@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view'
-import { EditorState, EditorSelection } from '@codemirror/state'
+import { EditorState, EditorSelection, Prec } from '@codemirror/state'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, syntaxTree } from '@codemirror/language'
 import {
@@ -176,6 +176,27 @@ function CodeEditor({
         '.cm-scroller': { fontFamily: 'ui-monospace, Consolas, monospace' },
       }),
       ...(isDark ? [oneDark] : []),
+      // oneDark ships its own fixed cool navy-blue chrome (background,
+      // gutter, active-line) that clashes once the app's own dark palette
+      // moves away from cool tones -- this repaints just the editor's
+      // structural colors to match the app's theme tokens, on top of
+      // oneDark, while leaving its syntax token colors untouched.
+      ...(isDark
+        ? [
+            Prec.highest(
+              EditorView.theme(
+                {
+                  '&': { backgroundColor: 'var(--bg)', color: 'var(--text-h)' },
+                  '.cm-content': { backgroundColor: 'var(--bg)', caretColor: 'var(--text-h)' },
+                  '.cm-gutters': { backgroundColor: 'var(--bg)', color: 'var(--text)', border: 'none' },
+                  '.cm-activeLine': { backgroundColor: 'var(--surface-hover)' },
+                  '.cm-activeLineGutter': { backgroundColor: 'var(--surface-hover)' },
+                },
+                { dark: true },
+              ),
+            ),
+          ]
+        : []),
     ]
 
     const state = EditorState.create({
