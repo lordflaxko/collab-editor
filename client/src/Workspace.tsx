@@ -22,6 +22,7 @@ import SaveTemplatePopover from './SaveTemplatePopover'
 import DebugPanel from './DebugPanel'
 import SymbolSearchModal from './SymbolSearchModal'
 import TextSearchModal from './TextSearchModal'
+import CommandPalette, { type Command } from './CommandPalette'
 import { useProjectSymbolIndex } from './useSymbolIndex'
 import { useFileTree, contentKeyFor } from './useFileTree'
 import { LANGUAGES, languageById } from './languages'
@@ -101,6 +102,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [debugOpen, setDebugOpen] = useState(false)
   const [symbolSearchOpen, setSymbolSearchOpen] = useState(false)
   const [textSearchOpen, setTextSearchOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [pendingJump, setPendingJump] = useState<{ fileId: string; pos: number } | null>(null)
   const projectSymbols = useProjectSymbolIndex(ydoc, files)
   const threads = useComments(ydoc, activeId ?? '')
@@ -355,6 +357,106 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     setAiChatOpen(true)
   }
 
+  function handleSaveAsTemplate() {
+    // Same popover the toolbar button opens, anchored to that button's own
+    // position -- invoked from the palette instead, there's no button to
+    // anchor to, so it's centered near the top of the editor instead.
+    setSaveTemplateCoords({ top: 140, left: 260, bottom: 146 })
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen((v) => !v)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const commands: Command[] = useMemo(
+    () => [
+      {
+        id: 'format',
+        label: formatting ? 'Formatting…' : 'Format',
+        group: 'Editor',
+        disabled: !canFormat(activeLanguage) || !canEdit || !ytext || formatting,
+        run: handleFormat,
+      },
+      { id: 'comment', label: 'Comment', group: 'Editor', disabled: !ytext, run: handleAddComment },
+      { id: 'explain', label: 'Explain', group: 'Editor', disabled: !ytext, run: handleExplain },
+      {
+        id: 'go-to-symbol',
+        label: 'Go to Symbol',
+        group: 'Editor',
+        run: () => setSymbolSearchOpen(true),
+      },
+      {
+        id: 'find-in-files',
+        label: 'Find in Files',
+        group: 'Editor',
+        run: () => setTextSearchOpen(true),
+      },
+      { id: 'chat', label: 'Chat', group: 'Collaborate', run: () => setChatOpen((v) => !v) },
+      {
+        id: 'source-control',
+        label: 'Source Control',
+        group: 'Collaborate',
+        run: () => setSourceControlOpen((v) => !v),
+      },
+      { id: 'review', label: 'Review', group: 'Collaborate', run: () => setReviewOpen((v) => !v) },
+      {
+        id: 'activity',
+        label: 'Activity',
+        group: 'Collaborate',
+        run: () => setActivityOpen((v) => !v),
+      },
+      { id: 'tests', label: 'Tests', group: 'Tools', run: () => setTestsOpen((v) => !v) },
+      {
+        id: 'ai-assistant',
+        label: 'AI Assistant',
+        group: 'Tools',
+        run: () => setAiChatOpen((v) => !v),
+      },
+      {
+        id: 'api-test',
+        label: 'API Test',
+        group: 'Tools',
+        run: () => setApiTestOpen((v) => !v),
+      },
+      {
+        id: 'database',
+        label: 'Database',
+        group: 'Tools',
+        disabled: !canEdit,
+        run: () => setDatabaseOpen((v) => !v),
+      },
+      {
+        id: 'deploy',
+        label: 'Deploy',
+        group: 'Tools',
+        disabled: !canEdit,
+        run: () => setDeployOpen((v) => !v),
+      },
+      {
+        id: 'debug',
+        label: 'Debug',
+        group: 'Tools',
+        disabled: !canEdit,
+        run: () => setDebugOpen((v) => !v),
+      },
+      {
+        id: 'save-as-template',
+        label: 'Save as Template',
+        group: 'Project',
+        disabled: !canEdit,
+        run: handleSaveAsTemplate,
+      },
+    ],
+    [activeLanguage, canEdit, formatting, ytext],
+  )
+
   return (
     <div className="workspace">
       <JoinLeaveToasts awareness={provider.awareness} />
@@ -379,6 +481,14 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           </span>
           <Presence awareness={provider.awareness} />
           <div className="editor-actions">
+            <button
+              type="button"
+              className="command-palette-hint"
+              onClick={() => setCommandPaletteOpen(true)}
+              title="Command palette"
+            >
+              ⌘K
+            </button>
             <select
               className="language-badge language-picker"
               value={activeLanguage.id}
@@ -684,6 +794,9 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           onJump={jumpToSymbol}
           onClose={() => setTextSearchOpen(false)}
         />
+      )}
+      {commandPaletteOpen && (
+        <CommandPalette commands={commands} onClose={() => setCommandPaletteOpen(false)} />
       )}
     </div>
   )

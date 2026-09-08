@@ -995,6 +995,86 @@ select:focus {
   text-overflow: ellipsis;
 }
 
+/* Command palette (Ctrl/Cmd+K) -- same layout as the Go to Symbol modal, but
+   its own class names since the two list different kinds of things. */
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.command-palette-modal {
+  width: 480px;
+  max-width: 90vw;
+  max-height: 60vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.command-palette-results {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.command-result {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.command-result.is-active {
+  background: var(--accent-bg);
+}
+
+.command-group {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text);
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.command-label {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.command-palette-hint {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--text);
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.command-palette-hint:hover {
+  border-color: var(--accent-border);
+  background: var(--surface-hover);
+}
+
 /* Find in Files reuses the Go to Symbol modal's layout, but with the
    location fixed-width and first, and the snippet (not a bare identifier)
    taking the remaining space. */
