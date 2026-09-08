@@ -13,6 +13,16 @@ A real-time collaborative code editor. Multiple people edit the same project at 
 
 Built with **TypeScript** (client), **JavaScript** (server), **CSS**, and **HTML**.
 
+## Screenshots
+
+| Landing page | Dashboard |
+| --- | --- |
+| ![Landing page](docs/screenshots/landing.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+**Workspace**, with the Chat and Source Control panels open:
+
+![Workspace](docs/screenshots/workspace.png)
+
 ### Languages supported in the editor
 
 Projects created in the app can be written in, run, and formatted in **JavaScript, TypeScript, Python, Java, C++, Rust,** and **Go** — each backed by a real Piston runtime, with server-side formatters (Prettier, `black`, `gofmt`, `rustfmt`, `clang-format`, `google-java-format`) for the Format button.
