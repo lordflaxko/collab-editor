@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react'
 
-type AccountMode = 'login' | 'signup' | 'forgot'
+type AccountMode = 'login' | 'signup' | 'forgot' | 'guest'
 
 interface AccountPanelProps {
   username: string | null
   error: string | null
   open: boolean
   mode: AccountMode
+  guestName: string
   onOpenChange: (open: boolean) => void
   onModeChange: (mode: AccountMode) => void
   onLogin: (username: string, password: string) => Promise<void>
   onSignup: (username: string, password: string, email: string) => Promise<void>
   onRequestPasswordReset: (email: string) => Promise<void>
+  onGuestNameChange: (name: string) => void
   onLogout: () => void
 }
 
@@ -20,16 +22,19 @@ function AccountPanel({
   error,
   open,
   mode,
+  guestName,
   onOpenChange,
   onModeChange,
   onLogin,
   onSignup,
   onRequestPasswordReset,
+  onGuestNameChange,
   onLogout,
 }: AccountPanelProps) {
   const [usernameInput, setUsernameInput] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
+  const [guestNameInput, setGuestNameInput] = useState(guestName)
   const [submitting, setSubmitting] = useState(false)
   const [resetRequested, setResetRequested] = useState(false)
 
@@ -49,8 +54,19 @@ function AccountPanel({
     setResetRequested(false)
   }
 
+  function openGuestForm() {
+    setGuestNameInput(guestName)
+    switchMode('guest')
+    onOpenChange(true)
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (mode === 'guest') {
+      onGuestNameChange(guestNameInput.trim())
+      onOpenChange(false)
+      return
+    }
     setSubmitting(true)
     try {
       if (mode === 'signup') {
@@ -73,16 +89,21 @@ function AccountPanel({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => {
-          switchMode('login')
-          onOpenChange(true)
-        }}
-      >
-        Log in
-      </button>
+      <>
+        <button type="button" className="btn btn-small" onClick={openGuestForm}>
+          {guestName.trim() ? `Guest: ${guestName.trim()}` : 'Continue as guest'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            switchMode('login')
+            onOpenChange(true)
+          }}
+        >
+          Log in
+        </button>
+      </>
     )
   }
 
@@ -90,10 +111,25 @@ function AccountPanel({
     <div className="account-form-anchor">
       <form className="account-form" onSubmit={submit}>
         <h3 className="account-form-title">
-          {mode === 'signup' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : 'Welcome back'}
+          {mode === 'signup'
+            ? 'Create your account'
+            : mode === 'forgot'
+              ? 'Reset your password'
+              : mode === 'guest'
+                ? 'Continue as a guest'
+                : 'Welcome back'}
         </h3>
 
-        {mode === 'forgot' ? (
+        {mode === 'guest' ? (
+          <input
+            className="text-input"
+            value={guestNameInput}
+            onChange={(e) => setGuestNameInput(e.target.value)}
+            placeholder="Your name"
+            aria-label="Guest name"
+            autoFocus
+          />
+        ) : mode === 'forgot' ? (
           resetRequested ? (
             <p className="account-form-note">
               If an account exists for that email, we've sent a link to reset your password.
@@ -140,11 +176,17 @@ function AccountPanel({
           </>
         )}
 
-        {error && <span className="account-error">{error}</span>}
+        {error && mode !== 'guest' && <span className="account-error">{error}</span>}
 
         {!(mode === 'forgot' && resetRequested) && (
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {mode === 'signup' ? 'Sign up' : mode === 'forgot' ? 'Send reset link' : 'Log in'}
+            {mode === 'signup'
+              ? 'Sign up'
+              : mode === 'forgot'
+                ? 'Send reset link'
+                : mode === 'guest'
+                  ? 'Continue as guest'
+                  : 'Log in'}
           </button>
         )}
 
@@ -154,7 +196,7 @@ function AccountPanel({
               Forgot password?
             </button>
           )}
-          {mode !== 'forgot' && (
+          {(mode === 'login' || mode === 'signup') && (
             <button
               type="button"
               className="link-button"
@@ -166,6 +208,11 @@ function AccountPanel({
           {mode === 'forgot' && (
             <button type="button" className="link-button" onClick={() => switchMode('login')}>
               Back to log in
+            </button>
+          )}
+          {mode === 'guest' && (
+            <button type="button" className="link-button" onClick={() => switchMode('login')}>
+              Log in instead
             </button>
           )}
           <button type="button" className="link-button" onClick={() => onOpenChange(false)}>

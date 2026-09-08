@@ -3,8 +3,12 @@ const USER_COLORS = ['#f87171', '#fb923c', '#facc15', '#4ade80', '#22d3ee', '#a7
 const NAME_KEY = 'collab-editor:display-name'
 const COLOR_KEY = 'collab-editor:color'
 
+// No random default name here -- an unset name means "hasn't chosen to be a
+// guest yet", which App.tsx falls back to displaying as "Anonymous" and the
+// nav's guest button reflects as an inviting "Continue as guest" rather than
+// looking like a name was already picked for them.
 export function loadDisplayName(): string {
-  return localStorage.getItem(NAME_KEY) ?? `User ${Math.floor(Math.random() * 1000)}`
+  return localStorage.getItem(NAME_KEY) ?? ''
 }
 
 export function saveDisplayName(name: string) {

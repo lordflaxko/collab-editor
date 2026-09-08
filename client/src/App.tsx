@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import ProjectView from './ProjectView'
 import Dashboard from './Dashboard'
 import JoinInvite from './JoinInvite'
@@ -38,7 +38,9 @@ function App() {
     parseRoute(window.location.pathname, window.location.search),
   )
   const [accountFormOpen, setAccountFormOpen] = useState(false)
-  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup' | 'forgot'>('login')
+  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup' | 'forgot' | 'guest'>(
+    'login',
+  )
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
   const { preference: themePreference, isDark, cyclePreference } = useTheme()
@@ -103,18 +105,6 @@ function App() {
           <button type="button" className="btn" onClick={goToGallery}>
             Explore
           </button>
-          <input
-            className="text-input app-name-input"
-            value={accountUsername ?? displayName}
-            onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="Your name"
-            aria-label="Your name"
-            disabled={accountUsername !== null}
-            title={
-              accountUsername !== null ? 'Signed in: your account name is used instead' : undefined
-            }
-            style={{ '--dot-color': userColor } as CSSProperties}
-          />
           <NotificationBell token={accountToken} onOpenRoom={openProject} />
           <button
             type="button"
@@ -129,11 +119,13 @@ function App() {
             error={accountError}
             open={accountFormOpen}
             mode={accountFormMode}
+            guestName={displayName}
             onOpenChange={setAccountFormOpen}
             onModeChange={setAccountFormMode}
             onSignup={accountSignup}
             onLogin={accountLogin}
             onRequestPasswordReset={accountRequestPasswordReset}
+            onGuestNameChange={handleNameChange}
             onLogout={accountLogout}
           />
         </div>

@@ -305,7 +305,9 @@ test("setting your name shows up in another client's presence list", async ({ br
   const anonCtx = await browser.newContext()
   const anonPage = await anonCtx.newPage()
   await anonPage.goto(new URL(projectUrl).pathname)
-  await anonPage.getByLabel('Your name').fill('Alice')
+  await anonPage.getByRole('button', { name: 'Continue as guest' }).click()
+  await anonPage.getByLabel('Guest name').fill('Alice')
+  await anonPage.getByRole('button', { name: 'Continue as guest' }).click()
   await expect(anonPage.getByText('Connected', { exact: true })).toBeVisible()
 
   await expect(ownerPage.locator('.presence-chip', { hasText: 'Alice' })).toBeVisible()
@@ -715,8 +717,6 @@ test('signing up creates an account and shows the signed-in state', async ({ pag
   await page.getByRole('button', { name: 'Sign up' }).click()
 
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
-  await expect(page.getByLabel('Your name')).toBeDisabled()
-  await expect(page.getByLabel('Your name')).toHaveValue(username)
 })
 
 test('a wrong password is rejected and a correct one logs back in after logout', async ({ page }) => {
