@@ -53,9 +53,12 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
   return (
     <div className="landing">
       <section className="landing-hero">
+        <div className="landing-glow" aria-hidden="true" />
         <div className="landing-copy">
           <span className="landing-eyebrow">Real-time collaborative coding</span>
-          <h1 className="landing-title">Code together, in real time.</h1>
+          <h1 className="landing-title">
+            Code together, <span className="landing-title-script">in real time.</span>
+          </h1>
           <p className="landing-subtitle">
             One shared editor for your whole team — live cursors, chat, git, sandboxed execution,
             and an AI assistant, all in the same tab.
