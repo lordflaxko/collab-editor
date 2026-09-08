@@ -161,7 +161,9 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="landing-features">
           {FEATURES.map((f) => (
             <div key={f.title} className="landing-feature-card">
-              <span className="landing-feature-icon">{f.icon}</span>
+              <span className="landing-feature-icon">
+                {f.icon === '▶' ? <span className="icon-play" aria-hidden="true" /> : f.icon}
+              </span>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
               <ul className="landing-feature-bullets">

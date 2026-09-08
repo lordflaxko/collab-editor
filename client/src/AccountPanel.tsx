@@ -60,6 +60,10 @@ function AccountPanel({
     onOpenChange(true)
   }
 
+  function handleGuestLogout() {
+    onGuestNameChange('')
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (mode === 'guest') {
@@ -90,9 +94,20 @@ function AccountPanel({
   if (!open) {
     return (
       <>
-        <button type="button" className="btn btn-small" onClick={openGuestForm}>
-          {guestName.trim() ? `Guest: ${guestName.trim()}` : 'Continue as guest'}
-        </button>
+        {guestName.trim() ? (
+          <div className="account-panel">
+            <button type="button" className="link-button" onClick={openGuestForm}>
+              Guest: {guestName.trim()}
+            </button>
+            <button type="button" className="btn btn-small" onClick={handleGuestLogout}>
+              Log out
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="btn btn-small" onClick={openGuestForm}>
+            Continue as guest
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-primary"

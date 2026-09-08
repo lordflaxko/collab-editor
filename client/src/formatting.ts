@@ -3,6 +3,7 @@ import babelPlugin from 'prettier/plugins/babel'
 import estreePlugin from 'prettier/plugins/estree'
 import typescriptPlugin from 'prettier/plugins/typescript'
 import type { LanguageConfig } from './languages'
+import { SERVER_URL } from './api'
 
 export function canFormat(language: LanguageConfig): boolean {
   return Boolean(language.prettierParser || language.serverFormat)
@@ -17,7 +18,7 @@ export async function formatCode(language: LanguageConfig, code: string): Promis
   }
 
   if (language.serverFormat) {
-    const response = await fetch('http://localhost:1234/format', {
+    const response = await fetch(`${SERVER_URL}/format`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ languageId: language.id, code }),

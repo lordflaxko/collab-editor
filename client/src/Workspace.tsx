@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
+import { WS_SERVER_URL } from './api'
 import CodeEditor, { type EditorHandle, type Coords } from './CodeEditor'
 import FileTree from './FileTree'
 import Presence from './Presence'
 import JoinLeaveToasts from './JoinLeaveToasts'
 import RunPanel from './RunPanel'
-import ChatPanel from './ChatPanel'
+import CollabSidebar from './CollabSidebar'
 import CommentPopover from './CommentPopover'
 import SourceControlPanel from './SourceControlPanel'
 import ActivityPanel from './ActivityPanel'
@@ -68,7 +69,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const canEdit = atLeast(role, 'editor')
   const ydoc = useMemo(() => new Y.Doc(), [])
   const provider = useMemo(
-    () => new WebsocketProvider('ws://localhost:1234', room, ydoc, { params: { token: token ?? '' } }),
+    () => new WebsocketProvider(WS_SERVER_URL, room, ydoc, { params: { token: token ?? '' } }),
     [room, ydoc, token],
   )
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
@@ -79,7 +80,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [editorHandle, setEditorHandle] = useState<EditorHandle | null>(null)
   const [formatError, setFormatError] = useState<string | null>(null)
   const [formatting, setFormatting] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
   const [sourceControlOpen, setSourceControlOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [testsOpen, setTestsOpen] = useState(false)
@@ -398,7 +398,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         group: 'Editor',
         run: () => setTextSearchOpen(true),
       },
-      { id: 'chat', label: 'Chat', group: 'Collaborate', run: () => setChatOpen((v) => !v) },
       {
         id: 'source-control',
         label: 'Source Control',
@@ -543,13 +542,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
 
             <button
               type="button"
-              className={`btn btn-small${chatOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setChatOpen((v) => !v)}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
               className={`btn btn-small${sourceControlOpen ? ' btn-toggle-active' : ''}`}
               onClick={() => setSourceControlOpen((v) => !v)}
             >
@@ -669,15 +661,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           isDark={isDark}
         />
       </div>
-      {chatOpen && (
-        <ChatPanel
-          ydoc={ydoc}
-          user={user}
-          room={room}
-          participants={participants}
-          onClose={() => setChatOpen(false)}
-        />
-      )}
       {sourceControlOpen && (
         <SourceControlPanel
           room={room}
@@ -732,6 +715,13 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           onClose={() => setDebugOpen(false)}
         />
       )}
+      <CollabSidebar
+        awareness={provider.awareness}
+        ydoc={ydoc}
+        user={user}
+        room={room}
+        participants={participants}
+      />
       {explainRequest && (
         <ExplainPopover
           coords={explainRequest.coords}

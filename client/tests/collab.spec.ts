@@ -386,7 +386,7 @@ test('creating a project from the JavaScript template seeds a runnable file and 
   await expect(page.locator('.file-tree-item', { hasText: 'main.test.js' })).toBeVisible()
   await expect(page.locator('.cm-content')).toContainText('fizzbuzz')
 
-  await page.getByRole('button', { name: /^▶ Run/ }).click()
+  await page.getByRole('button', { name: /^Run/ }).click()
   await expect(page.locator('.run-output-stdout')).toContainText('FizzBuzz', { timeout: 20000 })
 
   await page.getByRole('button', { name: 'Tests' }).click()
@@ -509,7 +509,7 @@ test('the Run button executes code against the sandbox and shows stdout', async 
   await openNewProject(page, 'run')
 
   await typeCode(page, 'console.log(2 + 2)')
-  await page.getByRole('button', { name: /^▶ Run/ }).click()
+  await page.getByRole('button', { name: /^Run/ }).click()
 
   await expect(page.locator('.run-output-stdout')).toContainText('4', { timeout: 20000 })
   await expect(page.locator('.run-output-exit')).toContainText('Exit code: 0')
@@ -522,7 +522,7 @@ test('stdin can be sent interactively while a program is waiting for it', async 
   await page.locator('.language-picker').selectOption('python')
   await typeCode(page, 'name = input("name? ")\nprint("hello " + name)')
 
-  await page.getByRole('button', { name: '▶ Run' }).click()
+  await page.getByRole('button', { name: 'Run' }).click()
   await expect(page.locator('.run-output')).toContainText('name?', { timeout: 15000 })
 
   await page.locator('.run-stdin').fill('Playwright')
@@ -538,7 +538,7 @@ test('Stop halts an in-flight run and the Run button works again afterward', asy
   await page.locator('.language-picker').selectOption('python')
   await typeCode(page, 'import time\nwhile True:\n    print("looping", flush=True)\n    time.sleep(0.2)')
 
-  await page.getByRole('button', { name: '▶ Run' }).click()
+  await page.getByRole('button', { name: 'Run' }).click()
   await expect(page.locator('.run-output')).toContainText('looping', { timeout: 15000 })
 
   await page.getByRole('button', { name: '■ Stop' }).click()
@@ -547,7 +547,7 @@ test('Stop halts an in-flight run and the Run button works again afterward', asy
   await page.locator('.cm-content').click()
   await page.keyboard.press('Control+A')
   await page.keyboard.type('print("restarted")')
-  await page.getByRole('button', { name: /^▶ Run/ }).click()
+  await page.getByRole('button', { name: /^Run/ }).click()
   await expect(page.locator('.run-output')).toContainText('restarted', { timeout: 15000 })
 })
 
@@ -560,11 +560,9 @@ test('a chat message and its reply sync to another client', async ({ browser }) 
   await openNewProject(pageA, 'chat')
   await inviteAndJoin(pageA, pageB, 'chatb', 'editor')
 
-  await pageA.getByRole('button', { name: 'Chat' }).click()
   await pageA.locator('.chat-compose .text-input').fill('hello from A')
   await pageA.locator('.chat-compose button', { hasText: 'Send' }).click()
 
-  await pageB.getByRole('button', { name: 'Chat' }).click()
   await expect(pageB.locator('.chat-message')).toContainText('hello from A')
 
   await pageB.getByRole('button', { name: 'Reply' }).click()
@@ -637,7 +635,6 @@ test('mentioning a present participant autocompletes and renders highlighted', a
   const bobUsername = await inviteAndJoin(pageA, pageB, 'mentionbob', 'editor')
   await expect(pageA.locator('.presence-chip', { hasText: bobUsername })).toBeVisible()
 
-  await pageA.getByRole('button', { name: 'Chat' }).click()
   const prefix = bobUsername.slice(0, 4)
   await pageA.locator('.chat-compose .text-input').pressSequentially(`hi @${prefix}`)
   await expect(pageA.locator('.mention-suggestions')).toContainText(`@${bobUsername}`)
@@ -660,11 +657,9 @@ test('an emoji reaction toggled by one client is visible to another', async ({ b
   await openNewProject(pageA, 'reaction')
   await inviteAndJoin(pageA, pageB, 'reactionb', 'editor')
 
-  await pageA.getByRole('button', { name: 'Chat' }).click()
   await pageA.locator('.chat-compose .text-input').fill('react to this')
   await pageA.locator('.chat-compose button', { hasText: 'Send' }).click()
 
-  await pageB.getByRole('button', { name: 'Chat' }).click()
   await expect(pageB.locator('.chat-message')).toContainText('react to this')
   await pageB.locator('.reaction-add-btn').click()
   await pageB.locator('.reaction-picker-popover input[type="text"]').fill('grinning face')
@@ -691,7 +686,6 @@ test('mentioning a registered account delivers a notification they see after sig
   const contextSender = await browser.newContext()
   const pageSender = await contextSender.newPage()
   await openNewProject(pageSender, 'notifysender')
-  await pageSender.getByRole('button', { name: 'Chat' }).click()
   await pageSender.locator('.chat-compose .text-input').fill(`hey @${targetUsername} look at this`)
   await pageSender.locator('.chat-compose button', { hasText: 'Send' }).click()
 
@@ -869,7 +863,7 @@ test("the Run button's background stays solid while hovered, instead of fading t
 }) => {
   await openNewProject(page, 'runhover')
 
-  const runButton = page.getByRole('button', { name: /^▶ Run/ })
+  const runButton = page.getByRole('button', { name: /^Run/ })
   await runButton.hover()
   const color = await runButton.evaluate((el) => getComputedStyle(el).backgroundColor)
   // Compares against the live --accent token rather than a hardcoded RGB
@@ -1082,7 +1076,7 @@ test('the API Test panel sends a real request from the browser and shows the res
 
   await page.getByRole('button', { name: 'API Test' }).click()
   await page.locator('.api-url-input').fill('http://localhost:1234/')
-  await page.getByRole('button', { name: 'Send' }).click()
+  await page.locator('.api-test-panel').getByRole('button', { name: 'Send' }).click()
 
   await expect(page.locator('.api-response-status')).toContainText('200', { timeout: 10000 })
   await expect(page.locator('.api-response-body')).toContainText('Yjs websocket server is running')
@@ -1107,7 +1101,7 @@ test('setting a breakpoint injects a logpoint and shows captured watch values pe
   await page.getByRole('button', { name: 'Set breakpoint' }).click()
   await expect(page.locator('.cm-breakpoint-marker')).toBeVisible()
 
-  await page.getByRole('button', { name: /^▶ Run/ }).click()
+  await page.getByRole('button', { name: /^Run/ }).click()
 
   await expect(page.locator('.debug-hit-item')).toHaveCount(3, { timeout: 15000 })
   await expect(page.locator('.debug-hit-item').nth(0)).toContainText('i = 1')
@@ -1132,13 +1126,13 @@ test('real step-through debugging pauses at a breakpoint and shows live variable
   await page.getByRole('button', { name: 'Set breakpoint' }).click()
 
   await page.getByRole('button', { name: 'Debug', exact: true }).click()
-  await page.getByRole('button', { name: '▶ Start Debugging' }).click()
+  await page.getByRole('button', { name: 'Start Debugging' }).click()
 
   await expect(page.locator('.debug-status')).toContainText('Paused at line 3', { timeout: 20000 })
   await expect(page.locator('.debug-var-item', { hasText: /^i1$/ })).toBeVisible()
   await expect(page.locator('.debug-var-item', { hasText: /^total0$/ })).toBeVisible()
 
-  await page.getByRole('button', { name: '▶ Resume' }).click()
+  await page.getByRole('button', { name: 'Resume' }).click()
   await expect(page.locator('.debug-var-item', { hasText: /^i2$/ })).toBeVisible({ timeout: 10000 })
   await expect(page.locator('.debug-var-item', { hasText: /^total1$/ })).toBeVisible()
 

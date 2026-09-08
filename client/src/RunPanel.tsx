@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { LanguageConfig } from './languages'
 import { injectLogpoints, parseDebugLine, MARKER_START, type ResolvedBreakpoint } from './logpoints'
 import TerminalView, { type TerminalHandle } from './TerminalView'
+import { WS_SERVER_URL } from './api'
 
 interface OutputSegment {
   stream: 'stdout' | 'stderr' | 'stdin'
@@ -148,7 +149,7 @@ function RunPanel({
   function handleRun() {
     resetForNewRun()
 
-    const ws = new WebSocket('ws://localhost:1234/__run')
+    const ws = new WebSocket(`${WS_SERVER_URL}/__run`)
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -194,7 +195,7 @@ function RunPanel({
 
     const startedAt = Date.now()
     const params = new URLSearchParams({ room, token: sessionToken ?? '' })
-    const ws = new WebSocket(`ws://localhost:1234/__runpkg?${params.toString()}`)
+    const ws = new WebSocket(`${WS_SERVER_URL}/__runpkg?${params.toString()}`)
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -299,7 +300,8 @@ function RunPanel({
           </button>
         ) : (
           <button type="button" className="btn btn-run" onClick={handleRun}>
-            ▶ {status === 'idle' ? 'Run' : 'Run again'}
+            <span className="icon-play" aria-hidden="true" />
+            {status === 'idle' ? 'Run' : 'Run again'}
           </button>
         )}
         {!running && language.id === 'javascript' && (

@@ -13,7 +13,7 @@ interface ChatPanelProps {
   user: Author
   room: string
   participants: string[]
-  onClose: () => void
+  onClose?: () => void
 }
 
 function timeLabel(createdAt: number) {
@@ -60,9 +60,11 @@ function ChatPanel({ ydoc, user, room, participants, onClose }: ChatPanelProps) 
     <div className="chat-panel">
       <div className="chat-panel-header">
         <span>Chat</span>
-        <button type="button" className="btn btn-small" onClick={onClose}>
-          Close
-        </button>
+        {onClose && (
+          <button type="button" className="btn btn-small" onClick={onClose}>
+            Close
+          </button>
+        )}
       </div>
       <div className="chat-messages">
         {messages.map((message) => (

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ResolvedBreakpoint } from './logpoints'
+import { WS_SERVER_URL } from './api'
 
 interface DebugVariable {
   name: string
@@ -63,7 +64,7 @@ function DebugPanel({ room, sessionToken, languageId, getCode, breakpoints, onCl
     setStatus('connecting')
 
     const params = new URLSearchParams({ room, token: sessionToken ?? '' })
-    const ws = new WebSocket(`ws://localhost:1234/__debug?${params.toString()}`)
+    const ws = new WebSocket(`${WS_SERVER_URL}/__debug?${params.toString()}`)
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -142,12 +143,14 @@ function DebugPanel({ room, sessionToken, languageId, getCode, breakpoints, onCl
             <div className="debug-panel-controls">
               {!active ? (
                 <button type="button" className="btn btn-small" onClick={handleStart}>
-                  ▶ Start Debugging
+                  <span className="icon-play" aria-hidden="true" />
+                  Start Debugging
                 </button>
               ) : (
                 <>
                   <button type="button" className="btn btn-small" onClick={handleResume} disabled={!paused}>
-                    ▶ Resume
+                    <span className="icon-play" aria-hidden="true" />
+                    Resume
                   </button>
                   <button type="button" className="btn btn-small" onClick={handleStepOver} disabled={!paused}>
                     ⤵ Step Over
