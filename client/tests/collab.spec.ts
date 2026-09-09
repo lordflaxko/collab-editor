@@ -662,8 +662,14 @@ test('an emoji reaction toggled by one client is visible to another', async ({ b
 
   await expect(pageB.locator('.chat-message')).toContainText('react to this')
   await pageB.locator('.reaction-add-btn').click()
-  await pageB.locator('.reaction-picker-popover input[type="text"]').fill('grinning face')
-  await pageB.locator('.reaction-picker-popover ul button').first().click()
+  // The picker opens on its compact reaction strip, so a common emoji is one
+  // labelled click -- no searching through the full picker to reach it. The
+  // role scope matters: the full picker is also in the DOM (just not shown)
+  // and lists the same emoji under its "Smileys & People" category.
+  await pageB
+    .getByRole('list', { name: 'Reactions' })
+    .getByLabel('grinning face with big eyes')
+    .click()
 
   await expect(pageA.locator('.reaction-pill')).toBeVisible({ timeout: 10000 })
 

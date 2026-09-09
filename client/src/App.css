@@ -1883,6 +1883,18 @@ select:focus {
   flex: 1;
 }
 
+/* Square, icon-only, and non-shrinking: the chat panel is only 260px wide,
+   so the compose row has no space for this to carry a label or to grow. */
+.compose-emoji-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.3rem;
+  width: 1.9rem;
+  color: var(--text);
+}
+
 /* Mentions */
 
 .mention-input-wrap {
@@ -1970,12 +1982,12 @@ select:focus {
   cursor: pointer;
 }
 
+/* Fixed rather than absolute so it escapes the chat panel's overflow:hidden
+   and the message list's scroll container, both of which clipped it. The
+   top/left (or bottom/left) come from the button's rect in Reactions.tsx. */
 .reaction-picker-popover {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed;
   z-index: 1001;
-  margin-top: 4px;
 }
 
 /* Notifications */

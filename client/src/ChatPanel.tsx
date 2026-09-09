@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type * as Y from 'yjs'
+import { Smile } from 'lucide-react'
 import { useChat, sendMessage, replyToMessage, toggleChatReaction } from './chat'
 import { extractMentions } from './mentions'
 import { notifyMention } from './notifications'
 import MentionInput from './MentionInput'
 import MentionText from './MentionText'
 import Reactions from './Reactions'
+import EmojiPickerButton from './EmojiPickerButton'
 import type { Author } from './threadHelpers'
 
 interface ChatPanelProps {
@@ -46,6 +48,10 @@ function ChatPanel({ ydoc, user, room, participants, onClose }: ChatPanelProps) 
     sendMessage(ydoc, user, draft.trim())
     notifyMentionsIn(draft.trim(), user, room)
     setDraft('')
+  }
+
+  function appendToReply(messageId: string, emoji: string) {
+    setReplyDrafts((current) => ({ ...current, [messageId]: (current[messageId] ?? '') + emoji }))
   }
 
   function submitReply(messageId: string) {
@@ -124,6 +130,13 @@ function ChatPanel({ ydoc, user, room, participants, onClose }: ChatPanelProps) 
                     participants={participants}
                     placeholder="Reply…"
                   />
+                  <EmojiPickerButton
+                    onPick={(emoji) => appendToReply(message.id, emoji)}
+                    label="Add emoji to reply"
+                    className="btn btn-small compose-emoji-btn"
+                  >
+                    <Smile size={14} aria-hidden="true" />
+                  </EmojiPickerButton>
                   <button
                     type="submit"
                     className="btn btn-small"
@@ -151,6 +164,13 @@ function ChatPanel({ ydoc, user, room, participants, onClose }: ChatPanelProps) 
           participants={participants}
           placeholder="Message the room…"
         />
+        <EmojiPickerButton
+          onPick={(emoji) => setDraft((current) => current + emoji)}
+          label="Add emoji"
+          className="btn btn-small compose-emoji-btn"
+        >
+          <Smile size={14} aria-hidden="true" />
+        </EmojiPickerButton>
         <button type="submit" className="btn btn-small btn-primary" disabled={!draft.trim()}>
           Send
         </button>
