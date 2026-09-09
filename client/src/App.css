@@ -76,6 +76,15 @@
   padding: 2rem 1.5rem 3rem;
 }
 
+/* The 1200px cap above is a reading measure for the marketing and dashboard
+   pages. The workspace is an IDE -- a file tree, editor, side panel and
+   collaborator sidebar all have to sit side by side -- so it gets the whole
+   viewport instead, the way a real editor does. At 1200px a single open side
+   panel already overflowed the row and forced a horizontal scrollbar. */
+.app-main:has(.workspace-page) {
+  max-width: none;
+}
+
 .doc-id {
   margin-right: auto;
   color: var(--text);
@@ -465,6 +474,12 @@ select:focus {
   font-weight: 800;
 }
 
+/* background-clip: text paints the gradient only inside the element's own
+   box, but this script face leans right and several of its glyphs ("?" most
+   visibly) draw past their advance width. That overhang fell outside the
+   paint area and rendered as a sliced-off letter. The padding widens the
+   paint area on both sides; the matching negative margins keep the text's
+   layout position and its spacing against neighbouring words unchanged. */
 .landing-title-script {
   font-family: var(--script);
   font-weight: 700;
@@ -474,6 +489,8 @@ select:focus {
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
+  padding: 0 0.16em;
+  margin: 0 -0.16em;
 }
 
 .landing-subtitle {
@@ -806,12 +823,25 @@ select:focus {
 .landing-mockup-project {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-h);
   font-weight: 600;
+}
+
+.landing-mockup-project-name {
+  margin-right: auto;
+}
+
+/* Mirrors the visibility chip the real dashboard shows next to each project.
+   Without it, a name paired only with an "editor"/"owner" badge reads like a
+   list of people rather than a list of projects. */
+.landing-mockup-project-meta {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .landing-mockup-badge {
@@ -949,18 +979,26 @@ select:focus {
 
 /* Workspace layout */
 
-/* Several side panels (Chat, Source Control, Activity, ...) can be open at
-   once alongside the editor. Without a floor on the editor's width, enough
-   open panels would squeeze it down until its toolbar's ~13 buttons had no
-   room to sit two-per-row and stacked one-per-row instead -- which, via
-   align-items: stretch below, dragged every panel's height up to match that
-   suddenly very tall toolbar. Scrolling the row horizontally once it
-   doesn't fit is the same tradeoff most multi-panel IDEs make. */
+/* Only one rail panel is open at a time now (see PanelId in Workspace.tsx),
+   so the row is at most: rail, file tree, editor, that panel, collaborators.
+   The editor keeps a min-width so it can't be squeezed to nothing, but a
+   much smaller one than it used to need -- the old floor existed to stop the
+   toolbar's ~13 buttons from wrapping into a very tall stack, and most of
+   those buttons have since moved to the icon rail. */
+
+/* The overflow-x above makes this a scroll container on both axes (an
+   overflow other than `visible` on one axis computes the other to `auto`),
+   and the panels' bottom edges sit flush against that boundary, so their
+   drop shadows and the editor's focus glow were being clipped away
+   entirely. The padding gives those shadows room to render; the matching
+   negative margin cancels it, so the panels stay exactly where they were. */
 .workspace {
   display: flex;
   gap: 1rem;
   align-items: stretch;
   overflow-x: auto;
+  padding: 1.5rem;
+  margin: -1.5rem;
 }
 
 /* File tree */
@@ -1112,7 +1150,7 @@ select:focus {
 
 .editor-wrapper {
   flex: 1;
-  min-width: 480px;
+  min-width: 360px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
@@ -3051,4 +3089,22 @@ select:focus {
   font-size: 0.85rem;
   word-break: break-all;
   color: var(--accent);
+}
+
+/* Each rail panel declares a comfortable fixed width above, along with
+   flex-shrink: 0. This block deliberately comes after all of them so it wins
+   on source order: on narrower screens the open panel should give some width
+   back rather than push the workspace row into a horizontal scroll. Without
+   it the widest panel (Database, 420px) overflowed by ~110px at 1280px. */
+.source-control-panel,
+.review-panel,
+.activity-panel,
+.test-panel,
+.ai-chat-panel,
+.api-test-panel,
+.database-panel,
+.deploy-panel,
+.debug-panel {
+  flex-shrink: 1;
+  min-width: 260px;
 }

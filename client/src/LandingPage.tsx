@@ -210,14 +210,16 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
           <div className="landing-mockup">
-            <div className="landing-mockup-header">Dashboard</div>
+            <div className="landing-mockup-header">My Projects</div>
             <div className="landing-mockup-body">
               <div className="landing-mockup-project">
-                <span>api-gateway</span>
+                <span className="landing-mockup-project-name">api-gateway</span>
+                <span className="landing-mockup-project-meta">private</span>
                 <span className="landing-mockup-badge">editor</span>
               </div>
               <div className="landing-mockup-project">
-                <span>design-system</span>
+                <span className="landing-mockup-project-name">design-system</span>
+                <span className="landing-mockup-project-meta">public</span>
                 <span className="landing-mockup-badge">owner</span>
               </div>
             </div>

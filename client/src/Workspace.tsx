@@ -61,6 +61,19 @@ import { extractMentions } from './mentions'
 import { notifyMention } from './notifications'
 import { atLeast, type Role } from './projects'
 
+// The side panels reachable from the activity rail. Exactly one can be open
+// at a time, so they're a single union rather than a boolean each.
+type PanelId =
+  | 'source-control'
+  | 'review'
+  | 'activity'
+  | 'tests'
+  | 'ai'
+  | 'api-test'
+  | 'database'
+  | 'deploy'
+  | 'debug'
+
 interface WorkspaceUser {
   name: string
   color: string
@@ -97,16 +110,19 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   const [editorHandle, setEditorHandle] = useState<EditorHandle | null>(null)
   const [formatError, setFormatError] = useState<string | null>(null)
   const [formatting, setFormatting] = useState(false)
-  const [sourceControlOpen, setSourceControlOpen] = useState(false)
-  const [activityOpen, setActivityOpen] = useState(false)
-  const [testsOpen, setTestsOpen] = useState(false)
-  const [aiChatOpen, setAiChatOpen] = useState(false)
+  // One side panel at a time, like VS Code's sidebar: the rail acts as a
+  // radio group rather than nine independent checkboxes. Nine panels could
+  // previously stack into the same flex row, and since each has a fixed
+  // width, even one open pushed the row past the viewport and forced a
+  // horizontal scrollbar.
+  const [activePanel, setActivePanel] = useState<PanelId | null>(null)
+  const togglePanel = useCallback(
+    (id: PanelId) => setActivePanel((current) => (current === id ? null : id)),
+    [],
+  )
+  const closePanel = useCallback(() => setActivePanel(null), [])
   const [aiPrefill, setAiPrefill] = useState('')
   const [aiPrefillKey, setAiPrefillKey] = useState(0)
-  const [reviewOpen, setReviewOpen] = useState(false)
-  const [apiTestOpen, setApiTestOpen] = useState(false)
-  const [databaseOpen, setDatabaseOpen] = useState(false)
-  const [deployOpen, setDeployOpen] = useState(false)
   const [openThread, setOpenThread] = useState<OpenThread | null>(null)
   const [explainRequest, setExplainRequest] = useState<{ coords: Coords; code: string } | null>(null)
   const { getForFile: getBreakpointsForFile, setBreakpoint, removeBreakpoint } = useBreakpoints()
@@ -116,7 +132,6 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
     existing: LineBreakpoint | undefined
   } | null>(null)
   const [saveTemplateCoords, setSaveTemplateCoords] = useState<Coords | null>(null)
-  const [debugOpen, setDebugOpen] = useState(false)
   const [symbolSearchOpen, setSymbolSearchOpen] = useState(false)
   const [textSearchOpen, setTextSearchOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
@@ -371,7 +386,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   function debugWithAI(question: string) {
     setAiPrefill(question)
     setAiPrefillKey((k) => k + 1)
-    setAiChatOpen(true)
+    setActivePanel('ai')
   }
 
   function handleSaveAsTemplate() {
@@ -419,48 +434,48 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         id: 'source-control',
         label: 'Source Control',
         group: 'Collaborate',
-        run: () => setSourceControlOpen((v) => !v),
+        run: () => togglePanel('source-control'),
       },
-      { id: 'review', label: 'Review', group: 'Collaborate', run: () => setReviewOpen((v) => !v) },
+      { id: 'review', label: 'Review', group: 'Collaborate', run: () => togglePanel('review') },
       {
         id: 'activity',
         label: 'Activity',
         group: 'Collaborate',
-        run: () => setActivityOpen((v) => !v),
+        run: () => togglePanel('activity'),
       },
-      { id: 'tests', label: 'Tests', group: 'Tools', run: () => setTestsOpen((v) => !v) },
+      { id: 'tests', label: 'Tests', group: 'Tools', run: () => togglePanel('tests') },
       {
         id: 'ai-assistant',
         label: 'AI Assistant',
         group: 'Tools',
-        run: () => setAiChatOpen((v) => !v),
+        run: () => togglePanel('ai'),
       },
       {
         id: 'api-test',
         label: 'API Test',
         group: 'Tools',
-        run: () => setApiTestOpen((v) => !v),
+        run: () => togglePanel('api-test'),
       },
       {
         id: 'database',
         label: 'Database',
         group: 'Tools',
         disabled: !canEdit,
-        run: () => setDatabaseOpen((v) => !v),
+        run: () => togglePanel('database'),
       },
       {
         id: 'deploy',
         label: 'Deploy',
         group: 'Tools',
         disabled: !canEdit,
-        run: () => setDeployOpen((v) => !v),
+        run: () => togglePanel('deploy'),
       },
       {
         id: 'debug',
         label: 'Debug',
         group: 'Tools',
         disabled: !canEdit,
-        run: () => setDebugOpen((v) => !v),
+        run: () => togglePanel('debug'),
       },
       {
         id: 'save-as-template',
@@ -470,7 +485,7 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         run: handleSaveAsTemplate,
       },
     ],
-    [activeLanguage, canEdit, formatting, ytext],
+    [activeLanguage, canEdit, formatting, togglePanel, ytext],
   )
 
   return (
@@ -479,8 +494,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
       <div className="workspace-rail">
         <button
           type="button"
-          className={`workspace-rail-btn${sourceControlOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setSourceControlOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'source-control' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('source-control')}
           title="Source Control"
           aria-label="Source Control"
         >
@@ -488,8 +503,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         </button>
         <button
           type="button"
-          className={`workspace-rail-btn${reviewOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setReviewOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'review' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('review')}
           title="Review"
           aria-label="Review"
         >
@@ -497,8 +512,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         </button>
         <button
           type="button"
-          className={`workspace-rail-btn${activityOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setActivityOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'activity' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('activity')}
           title="Activity"
           aria-label="Activity"
         >
@@ -509,8 +524,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
 
         <button
           type="button"
-          className={`workspace-rail-btn${testsOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setTestsOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'tests' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('tests')}
           title="Tests"
           aria-label="Tests"
         >
@@ -518,8 +533,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         </button>
         <button
           type="button"
-          className={`workspace-rail-btn${aiChatOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setAiChatOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'ai' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('ai')}
           title="AI Assistant"
           aria-label="AI Assistant"
         >
@@ -527,8 +542,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         </button>
         <button
           type="button"
-          className={`workspace-rail-btn${apiTestOpen ? ' btn-toggle-active' : ''}`}
-          onClick={() => setApiTestOpen((v) => !v)}
+          className={`workspace-rail-btn${activePanel === 'api-test' ? ' btn-toggle-active' : ''}`}
+          onClick={() => togglePanel('api-test')}
           title="API Test"
           aria-label="API Test"
         >
@@ -537,8 +552,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         {canEdit && (
           <button
             type="button"
-            className={`workspace-rail-btn${databaseOpen ? ' btn-toggle-active' : ''}`}
-            onClick={() => setDatabaseOpen((v) => !v)}
+            className={`workspace-rail-btn${activePanel === 'database' ? ' btn-toggle-active' : ''}`}
+            onClick={() => togglePanel('database')}
             title="Database"
             aria-label="Database"
           >
@@ -548,8 +563,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         {canEdit && (
           <button
             type="button"
-            className={`workspace-rail-btn${deployOpen ? ' btn-toggle-active' : ''}`}
-            onClick={() => setDeployOpen((v) => !v)}
+            className={`workspace-rail-btn${activePanel === 'deploy' ? ' btn-toggle-active' : ''}`}
+            onClick={() => togglePanel('deploy')}
             title="Deploy"
             aria-label="Deploy"
           >
@@ -559,8 +574,8 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
         {canEdit && (
           <button
             type="button"
-            className={`workspace-rail-btn${debugOpen ? ' btn-toggle-active' : ''}`}
-            onClick={() => setDebugOpen((v) => !v)}
+            className={`workspace-rail-btn${activePanel === 'debug' ? ' btn-toggle-active' : ''}`}
+            onClick={() => togglePanel('debug')}
             title="Debug"
             aria-label="Debug"
           >
@@ -706,58 +721,58 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
           isDark={isDark}
         />
       </div>
-      {sourceControlOpen && (
+      {activePanel === 'source-control' && (
         <SourceControlPanel
           room={room}
           canEdit={canEdit}
           sessionToken={token}
-          onClose={() => setSourceControlOpen(false)}
+          onClose={closePanel}
         />
       )}
-      {activityOpen && <ActivityPanel ydoc={ydoc} onClose={() => setActivityOpen(false)} />}
-      {testsOpen && (
-        <TestPanel room={room} onDebugWithAI={debugWithAI} onClose={() => setTestsOpen(false)} />
+      {activePanel === 'activity' && <ActivityPanel ydoc={ydoc} onClose={closePanel} />}
+      {activePanel === 'tests' && (
+        <TestPanel room={room} onDebugWithAI={debugWithAI} onClose={closePanel} />
       )}
-      {aiChatOpen && (
+      {activePanel === 'ai' && (
         <AIChatPanel
           ydoc={ydoc}
           room={room}
           sessionToken={token}
           activeFileId={activeId}
-          onClose={() => setAiChatOpen(false)}
+          onClose={closePanel}
           prefill={aiPrefill}
           prefillKey={aiPrefillKey}
         />
       )}
-      {reviewOpen && (
+      {activePanel === 'review' && (
         <ReviewPanel
           ydoc={ydoc}
           room={room}
           user={user}
           canEdit={canEdit}
-          onClose={() => setReviewOpen(false)}
+          onClose={closePanel}
         />
       )}
-      {apiTestOpen && <APITestPanel onClose={() => setApiTestOpen(false)} />}
-      {databaseOpen && (
-        <DatabasePanel room={room} sessionToken={token} onClose={() => setDatabaseOpen(false)} />
+      {activePanel === 'api-test' && <APITestPanel onClose={closePanel} />}
+      {activePanel === 'database' && (
+        <DatabasePanel room={room} sessionToken={token} onClose={closePanel} />
       )}
-      {deployOpen && (
+      {activePanel === 'deploy' && (
         <DeployPanel
           room={room}
           sessionToken={token}
           getAllFiles={getAllFiles}
-          onClose={() => setDeployOpen(false)}
+          onClose={closePanel}
         />
       )}
-      {debugOpen && (
+      {activePanel === 'debug' && (
         <DebugPanel
           room={room}
           sessionToken={token}
           languageId={activeLanguage.id}
           getCode={getCode}
           breakpoints={resolvedBreakpoints}
-          onClose={() => setDebugOpen(false)}
+          onClose={closePanel}
         />
       )}
       <CollabSidebar
