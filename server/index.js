@@ -127,8 +127,8 @@ const server = http.createServer(async (req, res) => {
         const resetLink = `${CLIENT_URL}/reset-password?token=${result.token}`
         await mailer.sendEmail(
           result.email,
-          'Reset your Collab Editor password',
-          `<p>Someone requested a password reset for your Collab Editor account.</p>` +
+          'Reset your CodeMesh password',
+          `<p>Someone requested a password reset for your CodeMesh account.</p>` +
             `<p><a href="${resetLink}">${resetLink}</a></p>` +
             `<p>This link expires in 30 minutes. If you didn't request this, you can ignore this email.</p>`,
         )

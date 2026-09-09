@@ -25,7 +25,7 @@ async function logIn(page: Page, username: string) {
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.getByLabel('Account username').fill(username)
   await page.getByLabel('Account password').fill('correct-horse-battery')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
 }
 
@@ -731,11 +731,11 @@ test('a wrong password is rejected and a correct one logs back in after logout',
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.getByLabel('Account username').fill(username)
   await page.getByLabel('Account password').fill('wrong-password')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByText('Incorrect username or password')).toBeVisible()
 
   await page.getByLabel('Account password').fill('correct-horse-battery')
-  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
 })
 

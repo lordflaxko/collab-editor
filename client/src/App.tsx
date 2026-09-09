@@ -4,6 +4,7 @@ import Dashboard from './Dashboard'
 import JoinInvite from './JoinInvite'
 import LandingPage from './LandingPage'
 import ResetPasswordPage from './ResetPasswordPage'
+import LoginPage from './LoginPage'
 import PublicGallery from './PublicGallery'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
@@ -19,6 +20,8 @@ type Route =
   | { type: 'join'; inviteToken: string }
   | { type: 'reset-password'; token: string }
   | { type: 'gallery' }
+  | { type: 'login' }
+  | { type: 'signup' }
   | { type: 'project'; id: string }
 
 function parseRoute(pathname: string, search: string): Route {
@@ -28,6 +31,8 @@ function parseRoute(pathname: string, search: string): Route {
     return { type: 'reset-password', token: new URLSearchParams(search).get('token') ?? '' }
   }
   if (trimmed === 'explore') return { type: 'gallery' }
+  if (trimmed === 'login') return { type: 'login' }
+  if (trimmed === 'signup') return { type: 'signup' }
   if (trimmed.startsWith('join/'))
     return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
   return { type: 'project', id: trimmed }
@@ -37,10 +42,7 @@ function App() {
   const [route, setRoute] = useState<Route>(() =>
     parseRoute(window.location.pathname, window.location.search),
   )
-  const [accountFormOpen, setAccountFormOpen] = useState(false)
-  const [accountFormMode, setAccountFormMode] = useState<'login' | 'signup' | 'forgot' | 'guest'>(
-    'login',
-  )
+  const [guestFormOpen, setGuestFormOpen] = useState(false)
   const [displayName, setDisplayName] = useState(() => loadDisplayName())
   const userColor = useMemo(() => loadUserColor(), [])
   const { preference: themePreference, isDark, cyclePreference } = useTheme()
@@ -89,17 +91,16 @@ function App() {
 
   const goToGallery = useCallback(() => navigate('/explore'), [navigate])
 
-  const openSignup = useCallback(() => {
-    setAccountFormMode('signup')
-    setAccountFormOpen(true)
-  }, [])
+  const goToLogin = useCallback(() => navigate('/login'), [navigate])
+
+  const goToSignup = useCallback(() => navigate('/signup'), [navigate])
 
   return (
     <div className="app-shell">
       <header className="app-nav">
         <button type="button" className="app-brand" onClick={goToDashboard}>
           <span className="app-brand-mark">◆</span>
-          Collab Editor
+          CodeMesh
         </button>
         <div className="app-nav-controls">
           <button type="button" className="btn" onClick={goToGallery}>
@@ -116,16 +117,11 @@ function App() {
           </button>
           <AccountPanel
             username={accountUsername}
-            error={accountError}
-            open={accountFormOpen}
-            mode={accountFormMode}
             guestName={displayName}
-            onOpenChange={setAccountFormOpen}
-            onModeChange={setAccountFormMode}
-            onSignup={accountSignup}
-            onLogin={accountLogin}
-            onRequestPasswordReset={accountRequestPasswordReset}
+            guestFormOpen={guestFormOpen}
+            onGuestFormOpenChange={setGuestFormOpen}
             onGuestNameChange={handleNameChange}
+            onLoginClick={goToLogin}
             onLogout={accountLogout}
           />
         </div>
@@ -134,6 +130,19 @@ function App() {
       <main className="app-main">
         {route.type === 'reset-password' ? (
           <ResetPasswordPage token={route.token} onReset={accountResetPassword} onDone={goToDashboard} />
+        ) : route.type === 'login' || route.type === 'signup' ? (
+          accountUsername && accountToken ? (
+            <Dashboard token={accountToken} username={accountUsername} onOpenProject={openProject} />
+          ) : (
+            <LoginPage
+              initialMode={route.type}
+              error={accountError}
+              onLogin={accountLogin}
+              onSignup={accountSignup}
+              onRequestPasswordReset={accountRequestPasswordReset}
+              onDone={goToDashboard}
+            />
+          )
         ) : accountChecking ? (
           <div className="sc-loading">Loading…</div>
         ) : route.type === 'dashboard' ? (
@@ -144,7 +153,7 @@ function App() {
               onOpenProject={openProject}
             />
           ) : (
-            <LandingPage onGetStarted={openSignup} />
+            <LandingPage onGetStarted={goToSignup} />
           )
         ) : route.type === 'join' ? (
           <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />

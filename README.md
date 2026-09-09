@@ -1,4 +1,4 @@
-# Collab Editor
+# CodeMesh
 
 A real-time collaborative code editor. Multiple people edit the same project at once with live cursors, chat, inline comments, a shared file tree, and presence — plus a full toolchain built in: sandboxed code execution with interactive stdin, real step-through debugging, Git (commit/branch/diff/review), a Postgres query panel, an HTTP API test panel, static/Node deployment, and an AI assistant for chat and code explanations.
 

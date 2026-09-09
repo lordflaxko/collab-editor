@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ResolvedBreakpoint } from './logpoints'
 import { WS_SERVER_URL } from './api'
+import { PlayIcon } from './icons'
 
 interface DebugVariable {
   name: string
@@ -143,13 +144,13 @@ function DebugPanel({ room, sessionToken, languageId, getCode, breakpoints, onCl
             <div className="debug-panel-controls">
               {!active ? (
                 <button type="button" className="btn btn-small" onClick={handleStart}>
-                  <span className="icon-play" aria-hidden="true" />
+                  <PlayIcon />
                   Start Debugging
                 </button>
               ) : (
                 <>
                   <button type="button" className="btn btn-small" onClick={handleResume} disabled={!paused}>
-                    <span className="icon-play" aria-hidden="true" />
+                    <PlayIcon />
                     Resume
                   </button>
                   <button type="button" className="btn btn-small" onClick={handleStepOver} disabled={!paused}>

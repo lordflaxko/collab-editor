@@ -3,6 +3,7 @@ import type { LanguageConfig } from './languages'
 import { injectLogpoints, parseDebugLine, MARKER_START, type ResolvedBreakpoint } from './logpoints'
 import TerminalView, { type TerminalHandle } from './TerminalView'
 import { WS_SERVER_URL } from './api'
+import { PlayIcon } from './icons'
 
 interface OutputSegment {
   stream: 'stdout' | 'stderr' | 'stdin'
@@ -300,7 +301,7 @@ function RunPanel({
           </button>
         ) : (
           <button type="button" className="btn btn-run" onClick={handleRun}>
-            <span className="icon-play" aria-hidden="true" />
+            <PlayIcon />
             {status === 'idle' ? 'Run' : 'Run again'}
           </button>
         )}

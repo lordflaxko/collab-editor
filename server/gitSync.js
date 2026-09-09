@@ -168,8 +168,8 @@ async function ensureRepo(room) {
     // A placeholder identity for the local repo config; real commits made
     // through this app override author/committer per-commit with whoever
     // is actually signed in (or "Auto-checkpoint" for automatic ones).
-    await git.addConfig('user.name', 'Collab Editor')
-    await git.addConfig('user.email', 'collab-editor@localhost')
+    await git.addConfig('user.name', 'CodeMesh')
+    await git.addConfig('user.email', 'codemesh@localhost')
   }
   return git
 }

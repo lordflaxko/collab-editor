@@ -161,13 +161,18 @@ code {
    like Playwright, that reads the DOM rather than pixels) -- content is
    clipped to a single pixel instead of removed via display:none, which
    would take it out of the accessibility tree entirely. */
+/* !important on every property here is deliberate and standard practice for
+   a visually-hidden utility class (same as Bootstrap/Tailwind's own
+   .sr-only) -- it's applied alongside other classes (e.g. .text-input)
+   whose same-specificity, later-in-cascade rules would otherwise win and
+   silently undo the clipping, rendering the "hidden" element at real size. */
 .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  white-space: nowrap;
-  border: 0;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }

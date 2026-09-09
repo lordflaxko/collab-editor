@@ -1,3 +1,5 @@
+import { PlayIcon } from './icons'
+
 interface LandingPageProps {
   onGetStarted: () => void
 }
@@ -162,7 +164,7 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
           {FEATURES.map((f) => (
             <div key={f.title} className="landing-feature-card">
               <span className="landing-feature-icon">
-                {f.icon === '▶' ? <span className="icon-play" aria-hidden="true" /> : f.icon}
+                {f.icon === '▶' ? <PlayIcon size={16} /> : f.icon}
               </span>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
@@ -254,7 +256,7 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
 
       <footer className="landing-footer">
         <span className="landing-footer-brand">
-          <span className="app-brand-mark">◆</span>Collab Editor
+          <span className="app-brand-mark">◆</span>CodeMesh
         </span>
         <span>Real-time collaborative coding.</span>
       </footer>

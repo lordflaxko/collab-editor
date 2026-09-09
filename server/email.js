@@ -2,7 +2,7 @@ const RESEND_API_URL = 'https://api.resend.com/emails'
 // Resend's own sandbox sender -- works with zero setup (no custom domain or
 // DNS verification needed), which matches where this project is at: it runs
 // locally and has no domain of its own yet.
-const FROM_ADDRESS = process.env.RESEND_FROM || 'Collab Editor <onboarding@resend.dev>'
+const FROM_ADDRESS = process.env.RESEND_FROM || 'CodeMesh <onboarding@resend.dev>'
 
 async function sendEmail(to, subject, html) {
   const apiKey = process.env.RESEND_API_KEY
