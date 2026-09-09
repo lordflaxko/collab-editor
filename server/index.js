@@ -25,6 +25,8 @@ const aiAssistant = require('./aiAssistant')
 const customTemplates = require('./customTemplates')
 const database = require('./database')
 const deploy = require('./deploy')
+const rateLimit = require('./rateLimit')
+const ssrfGuard = require('./ssrfGuard')
 const { readRoomFiles } = require('./gitSync')
 const { buildProjectZip } = require('./zipExport')
 const { logActivity } = require('./activityLog')
@@ -66,6 +68,26 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204)
     res.end()
     return
+  }
+
+  // Applied before any routing so a flood costs one Map lookup rather than
+  // a signup, a container, or an outbound call. Deploy previews are exempt:
+  // they are ordinary page loads for whoever opens the link, and a single
+  // visitor pulling a page's assets would otherwise trip the limit.
+  if (!req.url.startsWith('/preview/')) {
+    const { allowed, retryAfterSeconds } = rateLimit.consume(req)
+    if (!allowed) {
+      res.writeHead(429, {
+        'Content-Type': 'application/json',
+        'Retry-After': String(retryAfterSeconds),
+      })
+      res.end(
+        JSON.stringify({
+          error: `Too many requests -- try again in ${retryAfterSeconds}s`,
+        }),
+      )
+      return
+    }
   }
 
   // Public, unauthenticated, and not an exact-URL match like every other
@@ -641,6 +663,11 @@ const server = http.createServer(async (req, res) => {
       if (project.visibility !== 'private') {
         throw new Error('Database connections are only available for private projects')
       }
+      // The role and visibility gates above stop a passer-by, but on a
+      // public instance anyone can sign up and make a private project, so
+      // they don't stop a motivated one. This refuses the connection
+      // outright unless the host resolves somewhere publicly routable.
+      await ssrfGuard.assertPublicHost(connectionString)
       const result = await database.runReadOnlyQuery(connectionString, query)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(result))

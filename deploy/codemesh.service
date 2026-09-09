@@ -1,0 +1,43 @@
+# systemd unit for the CodeMesh server.
+#
+#   sudo cp deploy/codemesh.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now codemesh
+#
+# The server is deliberately NOT containerised. It drives the host's Docker
+# daemon for deploy previews, Install & Run, and step-through debugging, so
+# running it in a container would mean mounting the Docker socket inside --
+# which grants that container root on the host anyway, while making the
+# setup harder to reason about.
+
+[Unit]
+Description=CodeMesh collaboration server
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=codemesh
+Group=docker
+WorkingDirectory=/opt/codemesh/server
+ExecStart=/usr/bin/node index.js
+EnvironmentFile=/opt/codemesh/server/.env
+Restart=always
+RestartSec=5
+
+# Journald owns the logs; the app writes plain stdout/stderr.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=codemesh
+
+# Modest hardening. It can't be locked down much further: the service needs
+# the Docker socket, and it writes project git repos and Yjs data under its
+# own working directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

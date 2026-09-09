@@ -95,6 +95,8 @@ Copy `server/.env.example` to `server/.env`. Every variable is optional and fall
 | `PISTON_WS_URL` | `ws://localhost:2000/api/v2/connect` | Interactive runs (stdin) |
 | `PISTON_HTTP_URL` | `http://localhost:2000/api/v2/execute` | Test runs |
 | `YPERSISTENCE` | `server/data` | On-disk Yjs document storage |
+| `TRUST_PROXY` | off | Set to `1` only when behind a reverse proxy, so rate limiting uses `X-Forwarded-For` rather than the proxy's own address |
+| `ALLOW_PRIVATE_DB_HOSTS` | off | Set to `1` to let the Database panel reach loopback/private addresses. For local development only — leave off anywhere public |
 
 The client reads one variable, `VITE_SERVER_URL` (default `http://localhost:1234`) — set it to point a build at a non-local server.
 
@@ -132,6 +134,25 @@ cd client && npx playwright test
 ```
 
 Some specs need supporting services: Piston (Run/Format/Test), Docker (Deploy/Debug), a Postgres instance seeded with a `widgets` table (Database panel), and API keys for the AI and password-reset specs. Without those, the corresponding specs fail while the rest of the suite passes.
+
+**Stop your dev server first.** Playwright starts the app itself and passes
+two environment variables the suite depends on — it disables rate limiting
+(every spec signs up an account from the same address) and allows the
+Database panel to reach localhost. It reuses an already-running server if it
+finds one, and that server won't have those variables, so most specs fail in
+confusing ways.
+
+## Deploying
+
+See **[docs/DEPLOY.md](docs/DEPLOY.md)**. The short version: the client is a
+static bundle that hosts free anywhere, while the server needs a Linux VM
+with Docker — it drives the host's Docker daemon for deploy previews,
+Install & Run, and debugging, which managed platforms don't allow.
+
+Two settings exist specifically for public instances: `TRUST_PROXY=1` so
+rate limiting reads the real client IP from behind a reverse proxy, and
+`ALLOW_PRIVATE_DB_HOSTS`, which must stay off so the Database panel can't be
+used to reach the host's private network.
 
 ## Project structure
 
