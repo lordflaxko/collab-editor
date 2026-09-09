@@ -1,22 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Semantic design tokens (HSL-based)
+   ==========================================================================
+   Two layers, deliberately kept separate:
+
+   1. The tokens below (--background, --foreground, --primary, etc.) store
+      RAW HSL triplets (e.g. "348 76% 68%", no hsl() wrapper) -- this is the
+      shadcn/Tailwind convention that lets tailwind.config.ts consume them as
+      `hsl(var(--primary) / <alpha-value>)`, so Tailwind utilities like
+      `bg-primary` or `bg-primary/50` work with opacity modifiers.
+
+   2. The app's original tokens (--text, --bg, --accent, etc., further down)
+      store fully-resolved color values and are consumed directly as
+      `var(--text)` throughout the existing stylesheet. They're kept as-is
+      and now simply point at this new HSL layer via hsl(var(--x)), so nothing
+      in the existing ~2000 lines of component CSS needed to change.
+
+   A few names (accent/border/success) would collide between the two layers,
+   so the raw-HSL versions use a "-brand"/"-hsl" suffix internally; Tailwind's
+   config still exposes them under the clean names (bg-accent, border, etc.)
+   since a Tailwind color key is independent of the CSS variable backing it.
+   ========================================================================== */
+
 :root {
-  --text: #7a746c;
-  --text-h: #2b2521;
-  --bg: #ffffff;
-  --page-bg: #f6f5ef;
-  --border: #ece8de;
-  --border-strong: #ddd6c8;
-  --code-bg: #f6efe9;
-  --surface-hover: #f7ebee;
+  --background: 51 28% 95%;
+  --foreground: 24 13% 15%;
 
-  --accent: #eb6e86;
+  --card: 0 0% 100%;
+  --card-foreground: 24 13% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 24 13% 15%;
+
+  --primary: 348 76% 68%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 348 90% 82%;
+
+  --secondary: 43 27% 90%;
+  --secondary-foreground: 24 13% 15%;
+
+  --muted: 28 42% 94%;
+  --muted-foreground: 34 6% 45%;
+
+  --accent-brand: 174 76% 36%;
+  --accent-brand-foreground: 0 0% 100%;
+
+  --destructive: 2 70% 59%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success-hsl: 174 76% 36%;
+
+  --border-hsl: 43 27% 90%;
+  --input-hsl: 40 24% 83%;
+  --ring: 348 76% 68%;
+
+  --radius: 0.875rem;
+
+  /* Functional tokens built from the HSL primitives above */
+  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent-brand)));
+  --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--card)));
+  --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
+  --shadow-elegant: 0 20px 40px hsl(var(--foreground) / 0.1), 0 4px 10px hsl(var(--foreground) / 0.05);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: 20 7% 9%;
+    --foreground: 38 35% 94%;
+
+    --card: 26 12% 12%;
+    --card-foreground: 38 35% 94%;
+    --popover: 26 12% 12%;
+    --popover-foreground: 38 35% 94%;
+
+    --primary: 350 79% 75%;
+    --primary-foreground: 352 37% 12%;
+    --primary-glow: 350 90% 85%;
+
+    --secondary: 33 9% 19%;
+    --secondary-foreground: 38 35% 94%;
+
+    --muted: 17 9% 15%;
+    --muted-foreground: 34 7% 63%;
+
+    --accent-brand: 173 59% 50%;
+    --accent-brand-foreground: 352 37% 12%;
+
+    --destructive: 2 70% 59%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success-hsl: 173 59% 50%;
+
+    --border-hsl: 33 9% 19%;
+    --input-hsl: 32 10% 25%;
+    --ring: 350 79% 75%;
+  }
+}
+
+:root[data-theme='dark'] {
+  --background: 20 7% 9%;
+  --foreground: 38 35% 94%;
+
+  --card: 26 12% 12%;
+  --card-foreground: 38 35% 94%;
+  --popover: 26 12% 12%;
+  --popover-foreground: 38 35% 94%;
+
+  --primary: 350 79% 75%;
+  --primary-foreground: 352 37% 12%;
+  --primary-glow: 350 90% 85%;
+
+  --secondary: 33 9% 19%;
+  --secondary-foreground: 38 35% 94%;
+
+  --muted: 17 9% 15%;
+  --muted-foreground: 34 7% 63%;
+
+  --accent-brand: 173 59% 50%;
+  --accent-brand-foreground: 352 37% 12%;
+
+  --destructive: 2 70% 59%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success-hsl: 173 59% 50%;
+
+  --border-hsl: 33 9% 19%;
+  --input-hsl: 32 10% 25%;
+  --ring: 350 79% 75%;
+}
+
+/* ==========================================================================
+   Original app tokens -- unchanged names, now sourced from the HSL layer
+   above instead of literal hex/rgba, so every existing component still
+   works exactly as before (var(--text), var(--bg), var(--accent), etc.).
+   ========================================================================== */
+
+:root {
+  --text: hsl(var(--muted-foreground));
+  --text-h: hsl(var(--foreground));
+  --bg: hsl(var(--card));
+  --page-bg: hsl(var(--background));
+  --border: hsl(var(--border-hsl));
+  --border-strong: hsl(var(--input-hsl));
+  --code-bg: hsl(var(--muted));
+  --surface-hover: hsl(345 43% 95%);
+
+  --accent: hsl(var(--primary));
   --accent-hover: #e0546f;
-  --accent-text: #ffffff;
-  --accent-bg: rgba(235, 110, 134, 0.1);
-  --accent-border: rgba(235, 110, 134, 0.45);
+  --accent-text: hsl(var(--primary-foreground));
+  --accent-bg: hsl(var(--primary) / 0.1);
+  --accent-border: hsl(var(--primary) / 0.45);
 
-  --danger: #e0554f;
-  --danger-bg: rgba(224, 85, 79, 0.08);
-  --success: #16a394;
+  --danger: hsl(var(--destructive));
+  --danger-bg: hsl(var(--destructive) / 0.08);
+  --success: hsl(var(--success-hsl));
 
   --social-bg: rgba(244, 243, 236, 0.5);
   --glow-opacity: 0.12;
@@ -49,26 +190,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --text: #a8a29a;
-    --text-h: #f5f1ea;
-    --bg: #211d1a;
-    --page-bg: #181615;
-    --border: #34302b;
-    --border-strong: #453f38;
-    --code-bg: #2a2523;
-    --surface-hover: #2d2422;
-
-    --accent: #f28fa0;
     --accent-hover: #f5a3b1;
-    --accent-text: #2b1417;
-    --accent-bg: rgba(242, 143, 160, 0.16);
-    --accent-border: rgba(242, 143, 160, 0.5);
-
-    --danger-bg: rgba(224, 85, 79, 0.14);
-    --success: #34c9b8;
-
     --social-bg: rgba(47, 48, 58, 0.5);
     --glow-opacity: 0.35;
+    --surface-hover: hsl(11 14% 15%);
+
+    --danger-bg: hsl(var(--destructive) / 0.14);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -82,26 +209,12 @@
 }
 
 :root[data-theme='dark'] {
-  --text: #a8a29a;
-  --text-h: #f5f1ea;
-  --bg: #211d1a;
-  --page-bg: #181615;
-  --border: #34302b;
-  --border-strong: #453f38;
-  --code-bg: #2a2523;
-  --surface-hover: #2d2422;
-
-  --accent: #f28fa0;
   --accent-hover: #f5a3b1;
-  --accent-text: #2b1417;
-  --accent-bg: rgba(242, 143, 160, 0.16);
-  --accent-border: rgba(242, 143, 160, 0.5);
-
-  --danger-bg: rgba(224, 85, 79, 0.14);
-  --success: #34c9b8;
-
   --social-bg: rgba(47, 48, 58, 0.5);
   --glow-opacity: 0.35;
+  --surface-hover: hsl(11 14% 15%);
+
+  --danger-bg: hsl(var(--destructive) / 0.14);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
