@@ -31,16 +31,22 @@ function ProjectView({ projectId, token, user, isDark, onGoToDashboard }: Projec
   }, [projectId, token])
 
   if (state.status === 'loading') {
-    return <div className="sc-loading">Loading project…</div>
+    return (
+      <div className="workspace-page">
+        <div className="sc-loading">Loading project…</div>
+      </div>
+    )
   }
 
   if (state.status === 'error') {
     return (
-      <div className="unlock-gate">
-        <p>{state.message}</p>
-        <button type="button" className="btn" onClick={onGoToDashboard}>
-          Back to Dashboard
-        </button>
+      <div className="workspace-page">
+        <div className="unlock-gate">
+          <p>{state.message}</p>
+          <button type="button" className="btn" onClick={onGoToDashboard}>
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     )
   }
@@ -48,7 +54,8 @@ function ProjectView({ projectId, token, user, isDark, onGoToDashboard }: Projec
   const { project, role } = state
 
   return (
-    <>
+    <div className="workspace-page">
+      <div className="workspace-glow" aria-hidden="true" />
       <div className="doc-bar">
         <span className="doc-id">
           Project: <code>{project.name}</code> <span className="role-badge">{role}</span>
@@ -92,7 +99,7 @@ function ProjectView({ projectId, token, user, isDark, onGoToDashboard }: Projec
         isDark={isDark}
         onAccessRevoked={onGoToDashboard}
       />
-    </>
+    </div>
   )
 }
 

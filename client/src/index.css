@@ -58,33 +58,43 @@
 
   --radius: 0.875rem;
 
-  /* Functional tokens built from the HSL primitives above */
+  /* Functional tokens built from the HSL primitives above.
+     --shadow-elegant is deliberately NOT built from --foreground: in dark
+     mode that token flips to near-white, which turned every card's drop
+     shadow into a pale haze around the element instead of a shadow. Each
+     dark block below overrides it with a black-based value, the same way
+     --shadow-sm/md/lg are handled. */
   --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent-brand)));
   --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--card)));
   --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
-  --shadow-elegant: 0 20px 40px hsl(var(--foreground) / 0.1), 0 4px 10px hsl(var(--foreground) / 0.05);
+  /* Wider and fainter than --shadow-glow. Used on large informational cards,
+     where the tighter glow reads as a hard outline hugging the border rather
+     than light coming off the surface; --shadow-glow stays for buttons and
+     other small controls, which need the punchier version to register. */
+  --shadow-glow-soft: 0 0 70px hsl(var(--primary) / 0.16);
+  --shadow-elegant: 0 20px 40px rgba(20, 16, 40, 0.1), 0 4px 10px rgba(20, 16, 40, 0.05);
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --background: 20 7% 9%;
+    --background: 20 12% 5%;
     --foreground: 38 35% 94%;
 
-    --card: 26 12% 12%;
+    --card: 20 12% 9%;
     --card-foreground: 38 35% 94%;
-    --popover: 26 12% 12%;
+    --popover: 20 12% 9%;
     --popover-foreground: 38 35% 94%;
 
     --primary: 350 79% 75%;
     --primary-foreground: 352 37% 12%;
     --primary-glow: 350 90% 85%;
 
-    --secondary: 33 9% 19%;
+    --secondary: 33 9% 15%;
     --secondary-foreground: 38 35% 94%;
 
-    --muted: 17 9% 15%;
+    --muted: 17 9% 11%;
     --muted-foreground: 34 7% 63%;
 
     --accent-brand: 173 59% 50%;
@@ -95,8 +105,8 @@
 
     --success-hsl: 173 59% 50%;
 
-    --border-hsl: 33 9% 19%;
-    --input-hsl: 32 10% 25%;
+    --border-hsl: 33 9% 16%;
+    --input-hsl: 32 10% 20%;
     --ring: 350 79% 75%;
   }
 }
@@ -193,13 +203,14 @@
     --accent-hover: #f5a3b1;
     --social-bg: rgba(47, 48, 58, 0.5);
     --glow-opacity: 0.35;
-    --surface-hover: hsl(11 14% 15%);
+    --surface-hover: hsl(11 14% 12%);
 
     --danger-bg: hsl(var(--destructive) / 0.14);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.5);
+    --shadow-elegant: 0 20px 40px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
     --shadow: var(--shadow-md);
   }
 
@@ -212,18 +223,113 @@
   --accent-hover: #f5a3b1;
   --social-bg: rgba(47, 48, 58, 0.5);
   --glow-opacity: 0.35;
-  --surface-hover: hsl(11 14% 15%);
+  --surface-hover: hsl(11 14% 12%);
 
   --danger-bg: hsl(var(--destructive) / 0.14);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.5);
+  --shadow-elegant: 0 20px 40px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
   --shadow: var(--shadow-md);
 }
 
 :root[data-theme='dark'] #social .button-icon {
   filter: invert(1) brightness(2);
+}
+
+/* ==========================================================================
+   Workspace (IDE) page -- always dark, regardless of the site-wide
+   light/dark preference, like an editor chrome (VS Code, StackBlitz, etc.)
+   rather than a marketing page. `:has()` lets this react to the presence of
+   a `.workspace-page` element anywhere in the document without any JS body-
+   class toggling. Deeper/near-black than the ordinary dark theme (background
+   and card lightness pushed down further) for the moodier, glow-heavy look:
+   everything else reuses the already-tuned dark-theme values verbatim.
+   An explicit light-mode choice ([data-theme='light']) still wins, further
+   below, so the site-wide toggle keeps working even on this page. */
+:root:has(.workspace-page) {
+  --background: 20 12% 5%;
+  --foreground: 38 35% 94%;
+
+  --card: 20 12% 9%;
+  --card-foreground: 38 35% 94%;
+  --popover: 20 12% 9%;
+  --popover-foreground: 38 35% 94%;
+
+  --primary: 350 79% 75%;
+  --primary-foreground: 352 37% 12%;
+  --primary-glow: 350 90% 85%;
+
+  --secondary: 33 9% 15%;
+  --secondary-foreground: 38 35% 94%;
+
+  --muted: 17 9% 11%;
+  --muted-foreground: 34 7% 63%;
+
+  --accent-brand: 173 59% 50%;
+  --accent-brand-foreground: 352 37% 12%;
+
+  --destructive: 2 70% 59%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success-hsl: 173 59% 50%;
+
+  --border-hsl: 33 9% 16%;
+  --input-hsl: 32 10% 20%;
+  --ring: 350 79% 75%;
+
+  --accent-hover: #f5a3b1;
+  --surface-hover: hsl(11 14% 12%);
+  --danger-bg: hsl(var(--destructive) / 0.14);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.5);
+  --shadow-elegant: 0 20px 40px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
+  --shadow: var(--shadow-md);
+}
+
+:root[data-theme='light']:has(.workspace-page) {
+  --background: 51 28% 95%;
+  --foreground: 24 13% 15%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 24 13% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 24 13% 15%;
+
+  --primary: 348 76% 68%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 348 90% 82%;
+
+  --secondary: 43 27% 90%;
+  --secondary-foreground: 24 13% 15%;
+
+  --muted: 28 42% 94%;
+  --muted-foreground: 34 6% 45%;
+
+  --accent-brand: 174 76% 36%;
+  --accent-brand-foreground: 0 0% 100%;
+
+  --destructive: 2 70% 59%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success-hsl: 174 76% 36%;
+
+  --border-hsl: 43 27% 90%;
+  --input-hsl: 40 24% 83%;
+  --ring: 348 76% 68%;
+
+  --accent-hover: #e0546f;
+  --surface-hover: hsl(345 43% 95%);
+  --danger-bg: hsl(var(--destructive) / 0.08);
+
+  --shadow-sm: 0 1px 2px rgba(20, 16, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(20, 16, 40, 0.06), 0 1px 3px rgba(20, 16, 40, 0.06);
+  --shadow-lg: 0 20px 40px rgba(20, 16, 40, 0.1), 0 4px 10px rgba(20, 16, 40, 0.05);
+  --shadow-elegant: 0 20px 40px rgba(20, 16, 40, 0.1), 0 4px 10px rgba(20, 16, 40, 0.05);
+  --shadow: var(--shadow-md);
 }
 
 *,

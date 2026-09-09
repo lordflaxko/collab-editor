@@ -858,30 +858,30 @@ test('a stale Format error clears once the code changes, instead of describing c
   await expect(page.locator('.format-error')).toHaveCount(0)
 })
 
-test("the Run button's background stays solid while hovered, instead of fading to the generic hover tint", async ({
+test("the Run button's background stays the accent gradient while hovered, instead of fading to the generic hover tint", async ({
   page,
 }) => {
   await openNewProject(page, 'runhover')
 
   const runButton = page.getByRole('button', { name: /^Run/ })
   await runButton.hover()
-  const color = await runButton.evaluate((el) => getComputedStyle(el).backgroundColor)
-  // Compares against the live --accent token rather than a hardcoded RGB
-  // literal -- this assertion is about specificity (solid accent, not the
-  // washed-out .btn:hover tint), and pinning a literal color made it break
-  // on every palette change even though the behavior it guards never did.
-  const accent = await page.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
-  )
-  const expected = await page.evaluate((c) => {
+  const image = await runButton.evaluate((el) => getComputedStyle(el).backgroundImage)
+  // Compares against the live --gradient-primary token rather than a
+  // hardcoded gradient literal -- this assertion is about specificity (the
+  // accent gradient, not the washed-out .btn:hover tint), and pinning a
+  // literal value made it break on every palette change even though the
+  // behavior it guards never did.
+  const expected = await page.evaluate(() => {
     const probe = document.createElement('div')
-    probe.style.color = c
+    probe.style.backgroundImage = getComputedStyle(document.documentElement)
+      .getPropertyValue('--gradient-primary')
+      .trim()
     document.body.appendChild(probe)
-    const rgb = getComputedStyle(probe).color
+    const image = getComputedStyle(probe).backgroundImage
     probe.remove()
-    return rgb
-  }, accent)
-  expect(color).toBe(expected)
+    return image
+  })
+  expect(image).toBe(expected)
 })
 
 test('committing clears the changes list and records history', async ({ page }) => {

@@ -1,6 +1,23 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
+import {
+  Wand2,
+  MessageSquare,
+  Lightbulb,
+  Target,
+  Search,
+  GitBranch,
+  Eye,
+  Activity as ActivityIcon,
+  CheckCircle2,
+  Bot,
+  Plug,
+  Database as DatabaseIcon,
+  Rocket,
+  Bug,
+  BookmarkPlus,
+} from 'lucide-react'
 import { WS_SERVER_URL } from './api'
 import CodeEditor, { type EditorHandle, type Coords } from './CodeEditor'
 import FileTree from './FileTree'
@@ -459,6 +476,98 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
   return (
     <div className="workspace">
       <JoinLeaveToasts awareness={provider.awareness} />
+      <div className="workspace-rail">
+        <button
+          type="button"
+          className={`workspace-rail-btn${sourceControlOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setSourceControlOpen((v) => !v)}
+          title="Source Control"
+          aria-label="Source Control"
+        >
+          <GitBranch size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`workspace-rail-btn${reviewOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setReviewOpen((v) => !v)}
+          title="Review"
+          aria-label="Review"
+        >
+          <Eye size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`workspace-rail-btn${activityOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setActivityOpen((v) => !v)}
+          title="Activity"
+          aria-label="Activity"
+        >
+          <ActivityIcon size={18} aria-hidden="true" />
+        </button>
+
+        <span className="workspace-rail-divider" aria-hidden="true" />
+
+        <button
+          type="button"
+          className={`workspace-rail-btn${testsOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setTestsOpen((v) => !v)}
+          title="Tests"
+          aria-label="Tests"
+        >
+          <CheckCircle2 size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`workspace-rail-btn${aiChatOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setAiChatOpen((v) => !v)}
+          title="AI Assistant"
+          aria-label="AI Assistant"
+        >
+          <Bot size={18} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={`workspace-rail-btn${apiTestOpen ? ' btn-toggle-active' : ''}`}
+          onClick={() => setApiTestOpen((v) => !v)}
+          title="API Test"
+          aria-label="API Test"
+        >
+          <Plug size={18} aria-hidden="true" />
+        </button>
+        {canEdit && (
+          <button
+            type="button"
+            className={`workspace-rail-btn${databaseOpen ? ' btn-toggle-active' : ''}`}
+            onClick={() => setDatabaseOpen((v) => !v)}
+            title="Database"
+            aria-label="Database"
+          >
+            <DatabaseIcon size={18} aria-hidden="true" />
+          </button>
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            className={`workspace-rail-btn${deployOpen ? ' btn-toggle-active' : ''}`}
+            onClick={() => setDeployOpen((v) => !v)}
+            title="Deploy"
+            aria-label="Deploy"
+          >
+            <Rocket size={18} aria-hidden="true" />
+          </button>
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            className={`workspace-rail-btn${debugOpen ? ' btn-toggle-active' : ''}`}
+            onClick={() => setDebugOpen((v) => !v)}
+            title="Debug"
+            aria-label="Debug"
+          >
+            <Bug size={18} aria-hidden="true" />
+          </button>
+        )}
+      </div>
       <FileTree
         files={files}
         activeId={activeId}
@@ -504,128 +613,64 @@ function Workspace({ room, token, user, role, isDark, onAccessRevoked }: Workspa
             {canFormat(activeLanguage) && canEdit && (
               <button
                 type="button"
-                className="btn btn-small"
+                className="btn btn-small toolbar-chip"
                 onClick={handleFormat}
                 disabled={formatting || !ytext}
               >
+                <Wand2 size={14} className="toolbar-chip-icon" aria-hidden="true" />
                 {formatting ? 'Formatting…' : 'Format'}
               </button>
             )}
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-small toolbar-chip"
               onClick={handleAddComment}
               disabled={!ytext}
             >
+              <MessageSquare size={14} className="toolbar-chip-icon" aria-hidden="true" />
               Comment
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-small toolbar-chip"
               onClick={handleExplain}
               disabled={!ytext}
             >
+              <Lightbulb size={14} className="toolbar-chip-icon" aria-hidden="true" />
               Explain
             </button>
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-small toolbar-chip"
               onClick={() => setSymbolSearchOpen(true)}
             >
+              <Target size={14} className="toolbar-chip-icon" aria-hidden="true" />
               Go to Symbol
             </button>
-            <button type="button" className="btn btn-small" onClick={() => setTextSearchOpen(true)}>
+            <button
+              type="button"
+              className="btn btn-small toolbar-chip"
+              onClick={() => setTextSearchOpen(true)}
+            >
+              <Search size={14} className="toolbar-chip-icon" aria-hidden="true" />
               Find in Files
             </button>
 
-            <span className="toolbar-divider" aria-hidden="true" />
-
-            <button
-              type="button"
-              className={`btn btn-small${sourceControlOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setSourceControlOpen((v) => !v)}
-            >
-              Source Control
-            </button>
-            <button
-              type="button"
-              className={`btn btn-small${reviewOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setReviewOpen((v) => !v)}
-            >
-              Review
-            </button>
-            <button
-              type="button"
-              className={`btn btn-small${activityOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setActivityOpen((v) => !v)}
-            >
-              Activity
-            </button>
-
-            <span className="toolbar-divider" aria-hidden="true" />
-
-            <button
-              type="button"
-              className={`btn btn-small${testsOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setTestsOpen((v) => !v)}
-            >
-              Tests
-            </button>
-            <button
-              type="button"
-              className={`btn btn-small${aiChatOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setAiChatOpen((v) => !v)}
-            >
-              AI Assistant
-            </button>
-            <button
-              type="button"
-              className={`btn btn-small${apiTestOpen ? ' btn-toggle-active' : ''}`}
-              onClick={() => setApiTestOpen((v) => !v)}
-            >
-              API Test
-            </button>
             {canEdit && (
-              <button
-                type="button"
-                className={`btn btn-small${databaseOpen ? ' btn-toggle-active' : ''}`}
-                onClick={() => setDatabaseOpen((v) => !v)}
-              >
-                Database
-              </button>
-            )}
-            {canEdit && (
-              <button
-                type="button"
-                className={`btn btn-small${deployOpen ? ' btn-toggle-active' : ''}`}
-                onClick={() => setDeployOpen((v) => !v)}
-              >
-                Deploy
-              </button>
-            )}
-            {canEdit && (
-              <button
-                type="button"
-                className={`btn btn-small${debugOpen ? ' btn-toggle-active' : ''}`}
-                onClick={() => setDebugOpen((v) => !v)}
-              >
-                Debug
-              </button>
-            )}
-
-            <span className="toolbar-divider" aria-hidden="true" />
-
-            {canEdit && (
-              <button
-                type="button"
-                className="btn btn-small"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  setSaveTemplateCoords({ top: rect.top, left: rect.left, bottom: rect.bottom })
-                }}
-              >
-                Save as Template
-              </button>
+              <>
+                <span className="toolbar-divider" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="btn btn-small toolbar-chip"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setSaveTemplateCoords({ top: rect.top, left: rect.left, bottom: rect.bottom })
+                  }}
+                >
+                  <BookmarkPlus size={14} className="toolbar-chip-icon" aria-hidden="true" />
+                  Save as Template
+                </button>
+              </>
             )}
           </div>
         </div>

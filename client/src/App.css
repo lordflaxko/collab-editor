@@ -52,8 +52,12 @@
 }
 
 .app-brand-mark {
-  color: var(--accent);
   font-size: 1rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 .app-nav-controls {
@@ -146,6 +150,38 @@
   margin: 0 0.15rem;
 }
 
+/* Workspace toolbar chips -- icon + label pills for the editor toolbar
+   (Format, Source Control, AI Assistant, etc). A modifier on top of
+   .btn.btn-small rather than a redesign of .btn itself, since .btn is used
+   for plain text buttons everywhere else in the app (nav, dashboard, forms)
+   that aren't part of this makeover. The icon is a separate aria-hidden
+   span so it never joins the button's accessible name -- tests that assert
+   an exact name like "Comment" or "Debug" keep working unchanged. */
+.toolbar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius-pill);
+  transition: var(--transition-bounce), box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.toolbar-chip:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+.toolbar-chip.btn-toggle-active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: var(--accent-text);
+  box-shadow: var(--shadow-glow);
+}
+
+.toolbar-chip-icon {
+  flex-shrink: 0;
+}
+
 /* Filled, accent-colored treatment for the one or two most important
    actions in a given context (sign up, create project, send, commit) --
    plain .btn is deliberately neutral so it doesn't compete for attention.
@@ -156,21 +192,24 @@
    brightening it. */
 .btn-primary {
   border-color: var(--accent);
-  background: var(--accent);
+  background: var(--gradient-primary);
   color: var(--accent-text);
   font-weight: 600;
   border-radius: var(--radius-pill);
   padding-left: 1.1rem;
   padding-right: 1.1rem;
+  transition: var(--transition-bounce), box-shadow 0.3s ease;
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--gradient-primary);
   border-color: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
 }
 
 .btn-primary:disabled {
-  background: var(--accent);
+  background: var(--gradient-primary);
   border-color: var(--accent);
 }
 
@@ -289,6 +328,32 @@ select:focus {
   opacity: 0.6;
 }
 
+/* Workspace (IDE) page -- always dark (see index.css); this wrapper hosts
+   the decorative background glow and gives the whole page room to breathe
+   like the editor chrome it is, rather than another content page. */
+
+.workspace-page {
+  position: relative;
+}
+
+.workspace-glow {
+  position: absolute;
+  inset: -8% -10% auto -10%;
+  height: 420px;
+  background:
+    radial-gradient(45% 65% at 20% 20%, hsl(var(--primary) / 0.28) 0%, transparent 70%),
+    radial-gradient(40% 55% at 85% 35%, hsl(var(--accent-brand) / 0.22) 0%, transparent 70%);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.doc-bar,
+.workspace {
+  position: relative;
+  z-index: 1;
+}
+
 /* Project info bar (ProjectView's "Project: X | Copy link | Members" row) */
 
 .doc-bar {
@@ -300,7 +365,7 @@ select:focus {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-sm);
   font-size: 0.85rem;
 }
@@ -345,7 +410,7 @@ select:focus {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 4rem;
+  gap: 6.5rem;
 }
 
 .landing-hero {
@@ -353,7 +418,7 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 3rem;
-  padding: 2rem 0 1rem;
+  padding: 4rem 0 2rem;
 }
 
 /* A soft glow behind the hero text -- purely decorative (aria-hidden),
@@ -375,7 +440,7 @@ select:focus {
 .landing-copy {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1.25;
   min-width: 0;
 }
 
@@ -389,28 +454,34 @@ select:focus {
   font-size: 0.8rem;
   font-weight: 600;
   margin-bottom: 1.1rem;
+  box-shadow: var(--shadow-glow);
 }
 
 .landing-title {
-  font-size: 2.75rem;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  margin-bottom: 1rem;
+  font-size: clamp(2.75rem, 4.2vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.25rem;
+  font-weight: 800;
 }
 
 .landing-title-script {
   font-family: var(--script);
   font-weight: 700;
-  color: var(--accent);
   letter-spacing: 0;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 .landing-subtitle {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   line-height: 1.6;
   color: var(--text);
   max-width: 34rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .landing-cta {
@@ -421,8 +492,8 @@ select:focus {
 }
 
 .landing-cta-btn {
-  font-size: 1rem;
-  padding: 0.8rem 1.6rem;
+  font-size: 1.05rem;
+  padding: 1rem 2rem;
 }
 
 .landing-cta-note {
@@ -509,6 +580,13 @@ select:focus {
   border-radius: var(--radius-lg);
   background: var(--bg);
   box-shadow: var(--shadow-sm);
+  transition: var(--transition-bounce), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.landing-feature-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-glow-soft), var(--shadow-elegant);
+  transform: translateY(-4px);
 }
 
 .landing-feature-icon {
@@ -518,8 +596,8 @@ select:focus {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: var(--radius-sm);
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--gradient-primary);
+  color: var(--accent-text);
   font-size: 1rem;
   margin-bottom: 0.9rem;
 }
@@ -563,27 +641,35 @@ select:focus {
 /* Section shell shared by every block below the hero */
 
 .landing-section-title {
-  font-size: 1.9rem;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.9rem, 3.2vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .landing-section-subtitle {
   text-align: center;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   max-width: 34rem;
-  margin: 0 auto 2rem;
+  margin: 0 auto 2.5rem;
 }
 
 /* "How it works" timeline */
 
+/* overflow-x makes this a scroll container on BOTH axes -- per spec, an
+   overflow value other than `visible` on one axis computes the other to
+   `auto`. Without room to spare, that clipped the top edge off cards as they
+   lifted on hover (transform: translateY(-4px)), so the padding gives the
+   lift and its glow somewhere to go; the matching negative margin keeps the
+   row sitting exactly where it did before the padding was added. */
 .landing-timeline {
   display: flex;
   gap: 1rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding: 1rem 0.5rem;
+  margin: -1rem -0.5rem;
 }
 
 .landing-timeline-card {
@@ -594,6 +680,13 @@ select:focus {
   border-radius: var(--radius-lg);
   background: var(--bg);
   box-shadow: var(--shadow-sm);
+  transition: var(--transition-bounce), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.landing-timeline-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-glow-soft), var(--shadow-elegant);
+  transform: translateY(-4px);
 }
 
 .landing-timeline-index {
@@ -603,8 +696,8 @@ select:focus {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--gradient-primary);
+  color: var(--accent-text);
   font-size: 0.8rem;
   font-weight: 700;
   margin-bottom: 0.75rem;
@@ -635,6 +728,13 @@ select:focus {
   background: var(--bg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: var(--transition-bounce), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.landing-mockup:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-glow-soft), var(--shadow-elegant);
+  transform: translateY(-4px);
 }
 
 .landing-mockup-header {
@@ -865,12 +965,68 @@ select:focus {
 
 /* File tree */
 
+/* Activity rail -- a narrow VS Code-style icon strip for the panel toggles
+   that used to crowd the editor header as 9 separate labeled buttons
+   (Source Control, Review, Activity, Tests, AI Assistant, API Test,
+   Database, Deploy, Debug). Icon-only with a title/aria-label tooltip
+   instead of visible text, so the workspace reads as a real editor rather
+   than a wall of pill buttons -- the accessible name (via aria-label)
+   stays identical to the old visible label, so nothing that queries these
+   buttons by name needed to change. */
+.workspace-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 46px;
+  flex-shrink: 0;
+  padding: 0.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
+  box-shadow: var(--shadow-md);
+  height: fit-content;
+}
+
+.workspace-rail-divider {
+  width: 1.5rem;
+  height: 1px;
+  background: var(--border);
+  margin: 0.15rem 0;
+}
+
+.workspace-rail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition-bounce), box-shadow 0.3s ease, background 0.3s ease, color 0.3s ease;
+}
+
+.workspace-rail-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-h);
+  transform: translateY(-1px);
+}
+
+.workspace-rail-btn.btn-toggle-active {
+  background: var(--gradient-primary);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-glow);
+}
+
 .file-tree {
   width: 200px;
   flex-shrink: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   height: fit-content;
@@ -959,11 +1115,16 @@ select:focus {
   min-width: 480px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.3s ease;
+}
+
+.editor-wrapper:focus-within {
+  box-shadow: var(--shadow-glow), var(--shadow-md);
 }
 
 .editor-header {
@@ -1028,6 +1189,7 @@ select:focus {
 
 .status-connected .status-dot {
   background: #34d399;
+  box-shadow: 0 0 8px 1px rgba(52, 211, 153, 0.7);
 }
 
 .status-connecting .status-dot {
@@ -1137,12 +1299,13 @@ select:focus {
 
 .btn-run {
   border-color: var(--accent-border);
-  background: var(--accent);
+  background: var(--gradient-primary);
   color: var(--accent-text);
   font-weight: 600;
   border-radius: var(--radius-pill);
   padding-left: 1.1rem;
   padding-right: 1.1rem;
+  transition: var(--transition-bounce), box-shadow 0.3s ease;
 }
 
 /* .btn:hover sets its own (much lighter) background, and a class + :hover
@@ -1152,8 +1315,10 @@ select:focus {
    brightening, making a primary action button look disabled right when
    you're about to click it. */
 .btn-run:hover {
-  background: var(--accent);
+  background: var(--gradient-primary);
   filter: brightness(1.08);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
 }
 
 .btn-stop {
@@ -1556,7 +1721,7 @@ select:focus {
   flex-shrink: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
 }
@@ -1617,7 +1782,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -1845,7 +2010,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -1961,7 +2126,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -1996,7 +2161,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2070,7 +2235,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2094,7 +2259,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2193,7 +2358,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2485,6 +2650,12 @@ select:focus {
   font-size: 1.6rem;
   letter-spacing: -0.01em;
   margin-bottom: 0.3rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  width: fit-content;
 }
 
 .dashboard-header p {
@@ -2505,7 +2676,7 @@ select:focus {
 
 .dashboard-column:first-child {
   padding: 1.25rem;
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -2541,13 +2712,13 @@ select:focus {
   border-radius: var(--radius-md);
   background: var(--bg);
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  transition: var(--transition-bounce), box-shadow 0.3s ease;
 }
 
 .project-list-item:hover {
   border-color: var(--accent-border);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-soft), var(--shadow-elegant);
+  transform: translateY(-2px);
 }
 
 .dashboard-empty {
@@ -2599,13 +2770,13 @@ select:focus {
   background: var(--bg);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  transition: var(--transition-bounce), box-shadow 0.3s ease;
 }
 
 .gallery-card:hover {
   border-color: var(--accent-border);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-soft), var(--shadow-elegant);
+  transform: translateY(-2px);
 }
 
 .gallery-card-meta {
@@ -2627,7 +2798,7 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2652,7 +2823,7 @@ select:focus {
 .members-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   margin-bottom: 1rem;
   overflow: hidden;
@@ -2738,7 +2909,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2791,7 +2962,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
@@ -2850,7 +3021,7 @@ select:focus {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
   box-shadow: var(--shadow-md);
   height: fit-content;
   max-height: 80vh;
