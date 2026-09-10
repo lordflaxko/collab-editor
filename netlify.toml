@@ -4,13 +4,13 @@
 # does. Point VITE_SERVER_URL at wherever the server actually runs.
 
 [build]
-  # `base` sets the directory the build command runs in, but `publish` is
-  # still resolved from the repository root -- so it has to repeat the base
-  # path. Writing `publish = "dist"` here builds successfully and then
-  # publishes an empty directory, and the site serves 404 for every path
-  # with nothing in the deploy log to suggest why.
-  base = "client"
-  command = "npm run build"
+  # No `base` on purpose. Netlify's docs are ambiguous about whether
+  # `publish` is resolved relative to `base` or to the repository root, and
+  # getting it wrong produces a build that succeeds while publishing an
+  # empty directory -- the site then 404s on every path and the deploy log
+  # still reports success. Dropping `base` and writing both paths from the
+  # repository root removes the ambiguity entirely.
+  command = "cd client && npm ci && npm run build"
   publish = "client/dist"
 
 [build.environment]
