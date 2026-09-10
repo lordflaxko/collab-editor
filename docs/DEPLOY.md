@@ -249,6 +249,30 @@ reaches **Connected** — that confirms the WebSocket upgrade is surviving the
 proxy, which is the step most likely to be misconfigured. Run some code to
 confirm Piston is wired up.
 
+## Updating
+
+**Client:** push to the branch Netlify tracks. It builds the new version
+while the old one keeps serving, then swaps at the CDN — no downtime.
+Anyone with the page already open keeps the old bundle until they refresh.
+
+**Server:**
+
+```bash
+sudo bash /opt/codemesh/deploy/update.sh
+```
+
+That pulls, reinstalls dependencies only if `package-lock.json` or
+`package.json` actually changed, restarts, and then polls the health
+endpoint — systemd reports `active` for a moment even when the process is
+restarting into a crash loop, so its word alone isn't proof. If the server
+doesn't come back it prints the logs and the exact command to roll back.
+
+Expect roughly **3 seconds of interruption**. WebSocket connections drop and
+y-websocket reconnects on its own, so editors show "Connecting…" and then
+recover. Nothing is lost: Yjs documents persist to disk and git repos live
+on the filesystem. In-memory rate-limit counters do reset, so everyone gets
+a fresh allowance.
+
 ## Before you share the link
 
 - **Rate limits are conservative** — 10 auth attempts per 15 minutes per IP,
