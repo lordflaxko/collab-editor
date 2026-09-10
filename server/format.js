@@ -1,4 +1,4 @@
-const { spawn } = require('child_process')
+const { spawn, execFileSync } = require('child_process')
 const path = require('path')
 
 const GOFMT_BIN = '/piston/packages/go/1.16.2/go/bin/gofmt'
@@ -61,15 +61,41 @@ function formatJava(code) {
   )
 }
 
-// Go, Rust, and C++ formatters run inside the self-hosted Piston container
-// rather than on the host: gofmt/rustfmt already ship with Piston's Go/Rust
-// packages, and clang-format was apt-installed into the container alongside
-// them, so there's no need for separate host toolchains for those languages.
+// Go, Rust, and C++ have no host toolchain in the default setup: gofmt and
+// rustfmt ship inside Piston's own language packages and clang-format was
+// apt-installed into that container, so the formatters reach into it.
+//
+// That only works while Piston is on this machine. Once it isn't -- Piston
+// publishes an amd64-only image, so an ARM host has to run it elsewhere --
+// `docker exec piston_api` finds no such container and those three languages
+// silently lose their Format button. So prefer a formatter installed on this
+// host when there is one, and fall back to the container otherwise. Both
+// paths behave identically; only the location differs.
+const localToolCache = new Map()
+
+function hasLocalTool(name) {
+  if (!localToolCache.has(name)) {
+    let found = false
+    try {
+      // Resolved once per process: this runs on the request path, and
+      // spawning a lookup per keystroke-triggered format would be wasteful.
+      execFileSync(process.platform === 'win32' ? 'where' : 'which', [name], { stdio: 'ignore' })
+      found = true
+    } catch {
+      found = false
+    }
+    localToolCache.set(name, found)
+  }
+  return localToolCache.get(name)
+}
+
 function formatGo(code) {
+  if (hasLocalTool('gofmt')) return runFormatter('gofmt', [], code)
   return runFormatter('docker', ['exec', '-i', 'piston_api', GOFMT_BIN], code)
 }
 
 function formatRust(code) {
+  if (hasLocalTool('rustfmt')) return runFormatter('rustfmt', ['--emit', 'stdout'], code)
   return runFormatter(
     'docker',
     ['exec', '-i', '-e', `LD_LIBRARY_PATH=${RUSTC_LIB_DIR}`, 'piston_api', RUSTFMT_BIN, '--emit', 'stdout'],
@@ -78,6 +104,9 @@ function formatRust(code) {
 }
 
 function formatCpp(code) {
+  if (hasLocalTool('clang-format')) {
+    return runFormatter('clang-format', ['-style=LLVM'], code)
+  }
   return runFormatter('docker', ['exec', '-i', 'piston_api', 'clang-format', '-style=LLVM'], code)
 }
 

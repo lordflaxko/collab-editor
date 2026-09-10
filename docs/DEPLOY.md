@@ -1,184 +1,118 @@
 # Deploying CodeMesh
 
-The client is a static bundle and hosts anywhere for free. The server is the
-constrained half, so start there.
+The client is a static bundle that hosts free anywhere. The server needs a
+Linux VM with Docker, and that's what this guide sets up.
 
 ## Why the server needs a real VM
 
-The server drives the host's Docker daemon directly — `docker run` for
-deploy previews, Install & Run, and step-through debugging — and it keeps
-state on disk: project git repos, Yjs documents, and the JSON files holding
-accounts and projects. It also holds long-lived WebSocket connections.
+The server drives the host's Docker daemon directly — `docker run` for deploy
+previews, Install & Run, and step-through debugging — and keeps state on
+disk: project git repos, Yjs documents, and the JSON files holding accounts
+and projects. It also holds long-lived WebSocket connections.
 
 That rules out the usual managed tiers. Vercel and Netlify don't run a
 persistent process at all. Render, Railway, and Fly.io will run the process
 and proxy WebSockets fine, but none give you the host's Docker socket, so
-**Deploy, Install & Run, and Debug stop working** there. Run, Format, and
-Tests still work on those platforms if you point them at a Piston instance
-hosted elsewhere.
+Deploy, Install & Run, and Debug stop working there.
 
-If you want every feature, you need a Linux VM you control.
-
-### Free options
-
-| Option | Everything works? | Catch |
-| --- | --- | --- |
-| Oracle Cloud "Always Free" | Yes, across two instances | See below — the architecture split is forced by Piston. |
-| Google Cloud free `e2-micro` | Tight | 1 GB RAM. Piston plus the server plus a deploy container will thrash. |
-| Fly.io / Render free tier | No | No Docker socket, so Deploy / Install & Run / Debug are unavailable. Free instances also sleep when idle, which drops collaboration sockets. |
-| Any small paid VPS (~$4–6/mo) | Yes | Costs money, but it's the least fragile path. |
-
-Verify the current terms yourself — free tiers change often.
-
-**Whatever you pick, don't put it next to anything you care about.** The
-server can control the host's Docker daemon, which is root-equivalent on
-that box.
-
-## Oracle Cloud: use both free shapes
-
-One constraint drives the whole layout:
+**x86 keeps it simplest.** Piston, which powers Run and Tests, publishes an
+`amd64`-only image:
 
 ```
 ghcr.io/engineer-man/piston   linux/amd64 only  (single-arch manifest)
 node:20-alpine                amd64 + arm64/v8 + others
 ```
 
-Oracle's generous free shape is **Ampere A1**, which is ARM. Everything runs
-there *except* Piston — the server is plain Node, and Deploy, Install & Run,
-and Debug all use `node:20-alpine`, which has an arm64 build. Only Run,
-Format, and Tests need Piston, and its image has no ARM variant at all.
+On one x86 box everything just works. Anything with ~4 GB RAM will do —
+Hetzner, DigitalOcean, Linode, Vultr and similar run about $4–6/month. 2 GB
+is workable but tight once Piston has several language runtimes installed
+alongside a deploy container.
 
-Always Free also includes two **E2.1.Micro** instances, which are x86. So
-run Piston on one of those, natively:
+**For a free deployment**, an Oracle Cloud "Always Free" **x86 micro**
+(E2.1.Micro) runs the whole thing on one box, permanently, with every
+feature working — Piston included, since it's x86. Its 1 GB of RAM and
+fractional CPU are the limit: fine for a demo or portfolio link with a
+handful of users, not for a busy instance. Add swap and it copes.
 
-```
-Ampere A1 (ARM, several GB RAM)      E2.1.Micro (x86, 1 GB RAM)
-┌────────────────────────────┐       ┌──────────────────────────┐
-│ CodeMesh server            │       │ Piston                   │
-│ nginx + TLS                │──────▶│ :2000, private subnet    │
-│ deploy/debug containers    │       └──────────────────────────┘
-└────────────────────────────┘
-```
+Oracle also offers a far larger free ARM instance (Ampere, 4 cores / 24 GB),
+but Piston can't run on it, so that route needs two machines — see the
+[Oracle appendix](#appendix-oracle-always-free). Worth knowing before you
+reach for it: Piston ends up on the small x86 instance either way, so the
+ARM box speeds up the editor and sync, not code execution. Unless you expect
+real concurrent traffic, one x86 micro is the simpler trade.
 
-Run and Tests need no code changes — the server already reads Piston's
-location from the environment. (Formatting for Go, Rust, and C++ is the one
-thing that doesn't survive the split; see the note under Piston below.) On
-the ARM box, point it at the micro instance's **private** VCN address:
+**Don't put it next to anything you care about.** The server can control the
+host's Docker daemon, which is root-equivalent on that box.
 
-```
-PISTON_WS_URL=ws://10.0.0.x:2000/api/v2/connect
-PISTON_HTTP_URL=http://10.0.0.x:2000/api/v2/execute
-```
+## Before you start
 
-Keep Piston on the private subnet and don't give it a public IP. Add an
-ingress rule on the micro's security list allowing TCP 2000 from the ARM
-instance's address only.
-
-Two Oracle-specific snags worth knowing before you start: ARM capacity is
-frequently exhausted in popular regions, so provisioning may fail repeatedly
-with an out-of-capacity error, and Oracle's images ship with restrictive
-`iptables` rules — opening a port in the VCN security list is not enough on
-its own.
-
-### If you'd rather use one box
-
-You can run Piston on the ARM instance under emulation, with
-`--platform linux/amd64` and `qemu-user-static` registered via binfmt. It
-works, but every language runtime is then interpreted instruction by
-instruction. Expect scripting languages to feel sluggish and compiled ones
-(C++, Rust, Java) to be slow enough that runs may hit the execution timeout.
-The two-instance split above avoids all of that.
+- A VM running Ubuntu 24.04, ideally 4 GB RAM
+- A hostname pointing at the VM's IP. A registrar domain works; so does a
+  free **DuckDNS** subdomain — sign in at duckdns.org, claim a name, paste
+  in the server's IP, and `yourname.duckdns.org` resolves immediately.
+  DuckDNS is on the Public Suffix List, so Let's Encrypt treats it as its
+  own domain and issues certificates normally. (`nip.io` and `sslip.io`
+  need no signup at all, but everyone shares one registered domain there,
+  so certificate rate limits are frequently exhausted.)
+- SSH access as a sudo-capable user
 
 ## Server
 
-Assumes Ubuntu with a hostname like `api.example.com` pointed at the VM.
+### 1. Automated setup
 
-### 1. Docker, Node, and a service user
+`deploy/setup.sh` performs every step in section 2 and is safe to re-run:
 
 ```bash
-sudo apt update && sudo apt install -y docker.io nginx git
+git clone https://github.com/lordflaxko/collab-editor.git
+sudo bash collab-editor/deploy/setup.sh api.example.com
+```
+
+Then skip to [Configure](#3-configure). To understand or adjust what it does,
+section 2 is the same sequence by hand.
+
+### 2. Manual setup
+
+**Packages and a service user**
+
+```bash
+sudo apt update && sudo apt install -y docker.io nginx git curl
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
 sudo useradd --system --create-home --home-dir /opt/codemesh codemesh
-# Needed for the deploy/debug/Install & Run features.
+# Needed for deploy previews, Install & Run, and debugging.
 sudo usermod -aG docker codemesh
 ```
 
-### 2. Piston
-
-Run this on whichever machine is x86 — the same box on a normal VPS, or the
-E2.1.Micro instance in the Oracle split above.
+**Piston**
 
 ```bash
-# Same box as the server:
 sudo docker run -d --name piston_api --privileged --restart unless-stopped \
   -p 127.0.0.1:2000:2000 -v piston_packages:/piston/packages \
   ghcr.io/engineer-man/piston
-
-# Separate box: bind to its private address, never 0.0.0.0
-sudo docker run -d --name piston_api --privileged --restart unless-stopped \
-  -p 10.0.0.x:2000:2000 -v piston_packages:/piston/packages \
-  ghcr.io/engineer-man/piston
 ```
 
-Either way Piston must never be publicly reachable — it exists to execute
-arbitrary code, so anyone who can reach it can run whatever they like on
-that machine, with no account required.
+Binding to `127.0.0.1` keeps it off the public internet. That's essential,
+not tidiness: Piston executes arbitrary code on request with no
+authentication, so anything that can reach it owns the machine.
 
-Then install the language runtimes you want through the Piston API, and set
-up the formatters. That script runs `docker exec piston_api`, so it has to
-run **on whichever machine the Piston container is on**:
+Install the language runtimes you want through the Piston API, then the
+formatters. That script does `docker exec piston_api`, so it runs on the
+machine holding the Piston container — the same one, here:
 
 ```bash
 cd /opt/codemesh/server && npm run setup-formatters
 ```
 
-> **Formatting doesn't cross machines.** Go, Rust, and C++ are formatted by
-> `docker exec`-ing into the local `piston_api` container, so in the
-> two-instance Oracle split those three lose their Format button — the
-> server's Docker daemon has no such container. JavaScript, TypeScript,
-> Python, and Java format in-process on the server and are unaffected, and
-> **Run and Tests work fine either way**, since those reach Piston over the
-> network rather than through Docker.
->
-> If Format matters for Go, Rust, or C++, put Piston on the same machine as
-> the server — which on Oracle means the emulation route below, or giving up
-> the ARM instance and running everything on one x86 micro.
-
-### 3. The app
+**The app**
 
 ```bash
 sudo -u codemesh git clone https://github.com/lordflaxko/collab-editor.git /opt/codemesh
 cd /opt/codemesh/server && sudo -u codemesh npm ci --omit=dev
 sudo -u codemesh cp .env.example .env
-sudo -u codemesh nano .env
 ```
 
-For a public instance, set at minimum:
-
-```
-CLIENT_URL=https://codemesh.example.com
-TRUST_PROXY=1
-GEMINI_API_KEY=...
-RESEND_API_KEY=...
-
-# Only when Piston runs on another machine (the Oracle split):
-PISTON_WS_URL=ws://10.0.0.x:2000/api/v2/connect
-PISTON_HTTP_URL=http://10.0.0.x:2000/api/v2/execute
-```
-
-`TRUST_PROXY=1` matters: rate limiting keys off `X-Forwarded-For`, and
-without it every visitor looks like nginx and shares one bucket. Only set it
-because there *is* a proxy in front — the header is client-supplied
-otherwise.
-
-Leave `ALLOW_PRIVATE_DB_HOSTS` and `RATE_LIMIT_DISABLED` unset. The first
-lets the Database panel reach loopback and private addresses, including
-cloud metadata endpoints; the second turns request limiting off entirely.
-Both exist for local development and the test suite.
-
-### 4. Service and proxy
+**Service and proxy**
 
 ```bash
 sudo cp /opt/codemesh/deploy/codemesh.service /etc/systemd/system/
@@ -188,7 +122,7 @@ sudo cp /opt/codemesh/deploy/nginx.conf /etc/nginx/sites-available/codemesh
 sudo ln -s /etc/nginx/sites-available/codemesh /etc/nginx/sites-enabled/
 ```
 
-Add the upgrade map once, in the `http {}` block of
+Add the upgrade map once, inside the `http {}` block of
 `/etc/nginx/nginx.conf`:
 
 ```nginx
@@ -198,7 +132,7 @@ map $http_upgrade $connection_upgrade {
 }
 ```
 
-Then edit `server_name` in the site file, and:
+Set `server_name` in the site file to your hostname, then:
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
@@ -206,30 +140,48 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d api.example.com
 ```
 
-### 5. Firewall
+**Firewall**
 
 ```bash
 sudo ufw allow 22,80,443/tcp && sudo ufw enable
 ```
 
-The server (1234) is reached through nginx, so it stays closed. Piston
-(2000) stays closed too when it's on the same box.
+The server (1234) and Piston (2000) are both bound to loopback and reached
+through nginx, so neither should ever be opened. If your provider has its
+own cloud firewall (Hetzner and DigitalOcean both do), it's a second layer
+that has to agree — a port closed there stays closed no matter what `ufw`
+says.
 
-In the Oracle split, the Piston instance needs 2000 reachable from the ARM
-instance and nowhere else — in its own firewall and in the VCN security
-list:
+### 3. Configure
 
 ```bash
-# On the Piston instance only, where 10.0.0.x is the ARM instance:
-sudo ufw allow from 10.0.0.x to any port 2000 proto tcp
+sudo -u codemesh nano /opt/codemesh/server/.env
 ```
 
-Do not open 2000 to `0.0.0.0/0`. Piston executes arbitrary code on request,
-with no authentication — anything that can reach it owns that machine.
+For a public instance:
 
-Oracle's Ubuntu images also ship `iptables` rules that drop most inbound
-traffic regardless of what the VCN security list says, so check both layers
-if a port seems open but nothing connects.
+```
+CLIENT_URL=https://codemesh.example.com
+TRUST_PROXY=1
+GEMINI_API_KEY=...
+RESEND_API_KEY=...
+```
+
+`TRUST_PROXY=1` matters: rate limiting keys off `X-Forwarded-For`, and
+without it every visitor looks like nginx and shares one bucket. Set it only
+because there *is* a proxy in front — the header is client-supplied
+otherwise, so trusting it on a directly-exposed server lets anyone forge a
+fresh identity per request.
+
+Leave `ALLOW_PRIVATE_DB_HOSTS` and `RATE_LIMIT_DISABLED` unset. The first
+lets the Database panel reach loopback and private addresses, including
+cloud metadata endpoints; the second turns request limiting off entirely.
+Both exist for local development and the test suite.
+
+```bash
+sudo systemctl restart codemesh
+sudo systemctl status codemesh
+```
 
 ## Client
 
@@ -241,29 +193,106 @@ cd client
 VITE_SERVER_URL=https://api.example.com npm run build
 ```
 
-That writes `client/dist`, which is plain static files. Deploy them to
-Cloudflare Pages, Netlify, or Vercel — all free for this — or serve them
-from the same VM with nginx.
+That writes `client/dist` — plain static files, deployable anywhere.
 
-On a static host, set the build command to
-`npm run build`, the output directory to `dist`, and add `VITE_SERVER_URL`
-as an environment variable in the project's settings.
+**Netlify is the easiest option, and `netlify.toml` in the repo root already
+configures it.** Connect the repository at netlify.com, then set
+`VITE_SERVER_URL` under Site settings → Environment variables to your
+server's URL and trigger a deploy. You get HTTPS and a `*.netlify.app`
+hostname with no DNS work, and every push redeploys.
 
-Finally, set `CLIENT_URL` in the server's `.env` to wherever the client
-ended up, so password-reset emails link to the right place, and restart:
-`sudo systemctl restart codemesh`.
+The config does one non-obvious thing worth keeping: it rewrites all paths
+to `index.html`. The client routes on real paths, so without that rewrite
+any direct link, refresh, or shared project URL returns 404 — only `/`
+would work.
+
+Cloudflare Pages and Vercel work the same way (build `npm run build`, output
+`dist`, plus an equivalent SPA fallback). Or serve `dist` from the VM with
+nginx if you'd rather keep everything in one place.
+
+Make sure `CLIENT_URL` in the server's `.env` matches wherever the client
+ended up, so password-reset links point at the right place.
+
+## Verifying
+
+```bash
+curl -s https://api.example.com/projects/public          # should return JSON
+sudo journalctl -u codemesh -n 50 --no-pager
+```
+
+Then open the client, sign up, create a project, and check that the editor
+reaches **Connected** — that confirms the WebSocket upgrade is surviving the
+proxy, which is the step most likely to be misconfigured. Run some code to
+confirm Piston is wired up.
 
 ## Before you share the link
 
-- **Rate limits are in place** but tuned conservatively — 10 auth attempts
-  per 15 minutes per IP, 20 expensive operations per minute. Adjust `LIMITS`
-  in `server/rateLimit.js` if they're wrong for your traffic.
+- **Rate limits are conservative** — 10 auth attempts per 15 minutes per IP,
+  20 expensive operations per minute. Tune `LIMITS` in
+  `server/rateLimit.js` if that's wrong for your traffic.
 - **They're per-process and in memory.** Running more than one server
   process needs them moved to shared storage.
-- **WebSocket connections aren't rate limited** — only HTTP routes are. A
-  client can still open sync sockets freely.
+- **WebSocket connections aren't rate limited** — only HTTP routes are.
 - **There's no disk quota.** Projects accumulate git repos and Yjs data
   indefinitely. Watch `df -h` and prune abandoned projects.
-- **Anyone can sign up**, and signed-up users can run code. That's the
-  product working as intended, but it's worth knowing before posting the
-  link somewhere busy.
+- **Anyone can sign up, and signed-up users can run code.** That's the
+  product working as intended, but worth knowing before posting the link
+  somewhere busy.
+
+## Appendix: Oracle Always Free
+
+Oracle's generous free shape (Ampere A1, 4 cores / 24 GB) is ARM, and Piston
+has no ARM image. Everything else runs there fine — the server is plain
+Node, and Deploy / Install & Run / Debug use `node:20-alpine`, which has an
+arm64 build.
+
+Always Free also includes two x86 E2.1.Micro instances, so Piston can run
+natively on one of those:
+
+```
+Ampere A1 (ARM)                      E2.1.Micro (x86, 1 GB)
+┌────────────────────────────┐       ┌──────────────────────────┐
+│ CodeMesh server            │       │ Piston                   │
+│ nginx + TLS                │──────▶│ :2000, private subnet    │
+│ deploy/debug containers    │       └──────────────────────────┘
+└────────────────────────────┘
+```
+
+Run and Tests need no code changes — point the server at the micro's
+**private** VCN address:
+
+```
+PISTON_WS_URL=ws://10.0.0.x:2000/api/v2/connect
+PISTON_HTTP_URL=http://10.0.0.x:2000/api/v2/execute
+```
+
+Bind Piston to that private address rather than `0.0.0.0`, and allow TCP
+2000 only from the ARM instance:
+
+```bash
+sudo ufw allow from 10.0.0.x to any port 2000 proto tcp
+```
+
+**Install the formatter toolchains on the ARM box.** Go, Rust, and C++ are
+formatted by `docker exec`-ing into a local `piston_api` container when one
+exists — which it doesn't here. `server/format.js` prefers a formatter on
+the host's `PATH` and only falls back to the container, so installing them
+natively restores all three (each has an arm64 build):
+
+```bash
+sudo apt install -y golang-go clang-format
+sudo snap install rustup --classic && rustup default stable
+```
+
+Without them those three languages lose their Format button; everything else
+is unaffected either way, and Run and Tests work regardless since they reach
+Piston over the network.
+
+Two Oracle-specific snags: ARM capacity is frequently exhausted in popular
+regions, so provisioning can fail for days, and Oracle's Ubuntu images ship
+restrictive `iptables` rules — opening a port in the VCN security list is
+not enough on its own.
+
+Running Piston on the ARM box under `qemu-user-static` emulation avoids the
+split, but every runtime is then interpreted instruction by instruction;
+expect compiled languages to be slow enough to hit execution timeouts.

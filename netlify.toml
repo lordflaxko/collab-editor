@@ -1,0 +1,30 @@
+# Netlify hosts the client only. The server can't live here: it holds
+# long-lived WebSocket connections for Yjs sync, keeps state on disk, and
+# drives the host's Docker daemon — none of which a serverless platform
+# does. Point VITE_SERVER_URL at wherever the server actually runs.
+
+[build]
+  # `base` sets the directory the build command runs in, but `publish` is
+  # still resolved from the repository root -- so it has to repeat the base
+  # path. Writing `publish = "dist"` here builds successfully and then
+  # publishes an empty directory, and the site serves 404 for every path
+  # with nothing in the deploy log to suggest why.
+  base = "client"
+  command = "npm run build"
+  publish = "client/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Set VITE_SERVER_URL in the Netlify UI (Site settings → Environment
+# variables), not here — it differs per deploy and Vite inlines it at build
+# time, so changing it needs a rebuild rather than a restart.
+
+# The client routes on real paths (/login, /explore, /<projectId>), reading
+# window.location.pathname rather than a hash. Without this rewrite the CDN
+# looks for a file at that path and returns 404 on any direct link, refresh,
+# or shared project URL — the index.html is only found at /.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

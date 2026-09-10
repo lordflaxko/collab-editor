@@ -22,9 +22,14 @@ User=codemesh
 Group=docker
 WorkingDirectory=/opt/codemesh/server
 ExecStart=/usr/bin/node index.js
-EnvironmentFile=/opt/codemesh/server/.env
 Restart=always
 RestartSec=5
+
+# No EnvironmentFile= here on purpose. The app already loads server/.env
+# itself through dotenv, and systemd parses that format more strictly --
+# a quoted value or an inline # comment that dotenv accepts would stop the
+# unit from starting at all, with an error pointing at systemd rather than
+# at the line responsible.
 
 # Journald owns the logs; the app writes plain stdout/stderr.
 StandardOutput=journal
