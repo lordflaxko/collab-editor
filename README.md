@@ -1,8 +1,14 @@
 # CodeMesh
 
+**[▶ Try it live — codemesh-editor.netlify.app](https://codemesh-editor.netlify.app)**
+
 A real-time collaborative code editor. Several people open the same project and edit it at once — live cursors, presence, chat, and inline comment threads — with a full toolchain in the same tab: sandboxed execution with an interactive terminal, real step-through debugging, Git with pull requests, a Postgres query panel, an HTTP API tester, one-click deploys, and an AI assistant.
 
 ![CodeMesh landing page](docs/screenshots/landing.png)
+
+> The live instance runs on free infrastructure — a 1 GB VM for the server
+> and Piston, with the client on a CDN. It's sized for a demo rather than a
+> crowd, so expect code execution to take a few seconds.
 
 ## Features
 
@@ -51,6 +57,52 @@ The activity rail on the left switches the side panel — one at a time, like an
 
 ![Workspace](docs/screenshots/workspace.png)
 
+## How work is saved
+
+There's no save button, and three separate things are happening:
+
+1. **Live edits persist continuously.** Every keystroke is a Yjs update
+   synced to the server and written to LevelDB under `server/data`. That
+   covers files, chat, comments and the activity log alike — they're all
+   Yjs types — and it survives a server restart.
+2. **Uncommitted work becomes git commits on its own**, so "restore a
+   previous version" can reach edits nobody committed manually. Worth
+   knowing how it triggers: checkpoints piggyback on git operations
+   (opening Source Control, refreshing status, switching branches) rather
+   than a background timer, with a 5-minute floor between them. **Never
+   open Source Control and no automatic commits are made** — the work is
+   still safe under (1), there just aren't restore points.
+3. **Manual commits**, through the Source Control panel.
+
+What isn't persisted: run output, deploy previews (a point-in-time
+snapshot, torn down on Stop), and rate-limit counters (in-memory by
+design). A project's entire state lives in `server/data`, `server/repos`,
+and the `*.json` files beside them — worth knowing if you ever want to back
+one up.
+
+## Security
+
+The server executes code that strangers submit, so a public instance leans
+on a few things:
+
+- **Piston sandboxes execution**, and the containerised features (Deploy,
+  Install & Run, Debug) get capped memory, CPU and process counts on an
+  isolated Docker network, with a hard limit on concurrent deploys.
+- **Rate limiting** (`server/rateLimit.js`) by class of work — stricter for
+  auth than for reads, stricter still for anything that starts a container
+  or calls a paid API. Counters are per-process and in memory, so running
+  more than one server process needs them moved to shared storage.
+- **An SSRF guard** (`server/ssrfGuard.js`) on the Database panel. That
+  feature makes the server open an outbound connection to whatever host the
+  caller typed, which on a public box turns it into a probe for anything it
+  can reach that the caller can't — other containers, the host itself, and
+  cloud metadata endpoints that hand out instance credentials. Connections
+  are refused unless the host resolves to a publicly routable address.
+
+Two variables switch protections off for local development
+(`ALLOW_PRIVATE_DB_HOSTS`, `RATE_LIMIT_DISABLED`). Both default to off, so
+a deployment is protected unless someone deliberately opts out.
+
 ## Languages
 
 **JavaScript, TypeScript, Python, Java, C++, Rust,** and **Go** — each backed by a real Piston runtime, with server-side formatters (Prettier, `black`, `gofmt`, `rustfmt`, `clang-format`, `google-java-format`) behind the Format button.
@@ -97,6 +149,7 @@ Copy `server/.env.example` to `server/.env`. Every variable is optional and fall
 | `YPERSISTENCE` | `server/data` | On-disk Yjs document storage |
 | `TRUST_PROXY` | off | Set to `1` only when behind a reverse proxy, so rate limiting uses `X-Forwarded-For` rather than the proxy's own address |
 | `ALLOW_PRIVATE_DB_HOSTS` | off | Set to `1` to let the Database panel reach loopback/private addresses. For local development only — leave off anywhere public |
+| `RATE_LIMIT_DISABLED` | off | Set to `1` to switch request limiting off entirely. Exists for the end-to-end suite, which signs up an account per spec from one address. Never set it on a public instance |
 
 The client reads one variable, `VITE_SERVER_URL` (default `http://localhost:1234`) — set it to point a build at a non-local server.
 
@@ -104,15 +157,48 @@ The client reads one variable, `VITE_SERVER_URL` (default `http://localhost:1234
 
 ```bash
 docker run -d --name piston_api --privileged \
-  -p 2000:2000 -v piston_packages:/piston/packages \
+  -p 127.0.0.1:2000:2000 -v piston_packages:/piston/packages \
+  -e PISTON_RUN_TIMEOUT=20000 -e PISTON_COMPILE_TIMEOUT=60000 \
   ghcr.io/engineer-man/piston
 ```
 
-Then install the language runtimes you want through the Piston API. Formatters are installed separately:
+Bind it to `127.0.0.1`: Piston executes arbitrary code with no
+authentication, so anything that can reach it owns the machine.
+
+The raised timeouts matter on a small or shared-CPU host. Piston's defaults
+(3s run, 10s compile) assume a normal processor, and where wall clock runs
+ahead of CPU time — a Go hello-world measured 133 ms of CPU against 5 s of
+wall clock on a shared vCPU — Go and Java get SIGKILLed mid-run and return
+no output, which reads like a crash rather than a timeout.
+
+Then install the runtimes. The package names don't always match the
+language: **JavaScript installs as `node`, C++ as `gcc`**, and the versions
+must match those pinned in `server/languages.js` or Run reports an unknown
+runtime.
+
+```bash
+for pkg in "node 18.15.0" "typescript 5.0.3" "python 3.10.0" \
+           "gcc 10.2.0" "go 1.16.2" "java 15.0.2" "rust 1.68.2"; do
+  set -- $pkg
+  curl -s -X POST http://127.0.0.1:2000/api/v2/packages \
+    -H 'Content-Type: application/json' \
+    -d "{\"language\":\"$1\",\"version\":\"$2\"}"
+done
+```
+
+Formatters are separate. Go, Rust and C++ are formatted by whichever
+binaries are on the host's `PATH`, falling back to `docker exec`-ing into
+the Piston container when there are none — so this script has to run on
+whichever machine holds that container:
 
 ```bash
 cd server && npm run setup-formatters
 ```
+
+Python's formatter needs `python` on the `PATH` (Ubuntu ships only
+`python3`; `python-is-python3` provides it) and Java's needs a JDK **no
+newer than 21** — `google-java-format` calls javac internals that JDK 25
+changed.
 
 ## Running
 
@@ -144,15 +230,49 @@ confusing ways.
 
 ## Deploying
 
-See **[docs/DEPLOY.md](docs/DEPLOY.md)**. The short version: the client is a
-static bundle that hosts free anywhere, while the server needs a Linux VM
-with Docker — it drives the host's Docker daemon for deploy previews,
-Install & Run, and debugging, which managed platforms don't allow.
+Full walkthrough in **[docs/DEPLOY.md](docs/DEPLOY.md)**, including a free
+hosting route. The short version: the client is a static bundle that hosts
+free anywhere, while the server needs a Linux VM with Docker — it drives
+the host's Docker daemon for deploy previews, Install & Run, and debugging,
+which managed platforms don't allow.
 
-Two settings exist specifically for public instances: `TRUST_PROXY=1` so
-rate limiting reads the real client IP from behind a reverse proxy, and
-`ALLOW_PRIVATE_DB_HOSTS`, which must stay off so the Database panel can't be
-used to reach the host's private network.
+On a fresh Ubuntu VM, one command does the whole server build — packages,
+Node, a service user, Piston, systemd, nginx and the firewall:
+
+```bash
+git clone https://github.com/lordflaxko/collab-editor.git
+sudo bash collab-editor/deploy/setup.sh your-hostname.example.com
+```
+
+It stops short of certbot (which needs live DNS) and `.env` (which needs
+your keys), printing both as next steps. Prefer **x86**: Piston publishes an
+`amd64`-only image, so an ARM host has to run it on a separate machine or
+under emulation.
+
+The client builds separately, and `VITE_SERVER_URL` is inlined at build
+time — so it must be set before building, and changing it means rebuilding:
+
+```bash
+cd client && VITE_SERVER_URL=https://your-hostname.example.com npm run build
+```
+
+`netlify.toml` in the repo root configures Netlify for this; set
+`VITE_SERVER_URL` in the site's environment variables and connect the repo.
+
+### Updating a deployment
+
+The client redeploys on push, building the new version while the old one
+keeps serving. For the server:
+
+```bash
+sudo bash /opt/codemesh/deploy/update.sh
+```
+
+That pulls, reinstalls dependencies only when the lockfile changed,
+restarts, and polls the health endpoint — systemd reports `active` for a
+moment even when the process is restarting into a crash loop, so its word
+alone isn't proof. Expect about 3 seconds of interruption: WebSockets drop
+and reconnect on their own, and nothing is lost.
 
 ## Project structure
 
@@ -162,5 +282,6 @@ client/   React app — editor, panels, routing, design system
   tests/  Playwright end-to-end suite
 server/   WebSocket collaboration server + REST endpoints
           (accounts, projects, git, deploy, database, AI, email)
-docs/     Screenshots
+deploy/   setup.sh, update.sh, nginx and systemd config
+docs/     DEPLOY.md and screenshots
 ```
