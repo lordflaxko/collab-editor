@@ -40,7 +40,23 @@ apt-get update -qq
 # matters on a recent release: NodeSource publishes per-codename repos and
 # has none for 26.04 ("resolute"), so its installer 404s, while Ubuntu
 # itself already ships Node 22 there.
-apt-get install -y -qq docker.io nginx git curl ca-certificates nodejs npm
+apt-get install -y -qq docker.io nginx git curl ca-certificates nodejs npm \
+  python-is-python3 black openjdk-21-jre-headless
+
+# Host-side formatter dependencies, each learned the hard way on a fresh box:
+#
+#  python-is-python3  format.js and setup-formatters.js both invoke `python`,
+#                     which Ubuntu no longer provides by default (python3 only).
+#  black              installed from apt rather than pip, since PEP 668 marks
+#                     the system environment externally managed.
+#  openjdk-21         google-java-format 1.19.2 calls javac internals that
+#                     JDK 25 changed, failing with NoSuchMethodError. 21 is the
+#                     newest LTS it works against, so pin it rather than take
+#                     whatever default-jre points at.
+if command -v update-alternatives >/dev/null; then
+  java21=$(ls -d /usr/lib/jvm/java-21-openjdk-*/bin/java 2>/dev/null | head -1)
+  [[ -n "$java21" ]] && update-alternatives --set java "$java21" >/dev/null 2>&1 || true
+fi
 
 node_major=$(node -v 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
 if [[ -z "$node_major" ]] || (( node_major < NODE_MIN_MAJOR )); then
@@ -65,8 +81,19 @@ log "Starting Piston"
 if [[ -z "$(docker ps -aq -f name=^piston_api$)" ]]; then
   # Bound to loopback on purpose: Piston runs arbitrary code with no
   # authentication, so anything that can reach it owns this machine.
+  #
+  # The timeouts are raised well above Piston's defaults (3s run, 10s
+  # compile) because those assume a normal CPU. On a small shared-vCPU
+  # instance the wall clock runs far ahead of CPU time -- a Go hello-world
+  # measured 133ms of CPU but 5s of wall clock -- so Go and Java were being
+  # SIGKILLed mid-run with no output, looking like a crash rather than a
+  # timeout. Generous limits cost nothing when nothing is hitting them.
   docker run -d --name piston_api --privileged --restart unless-stopped \
     -p 127.0.0.1:2000:2000 -v piston_packages:/piston/packages \
+    -e PISTON_RUN_TIMEOUT=20000 \
+    -e PISTON_COMPILE_TIMEOUT=60000 \
+    -e PISTON_RUN_CPU_TIME=20000 \
+    -e PISTON_COMPILE_CPU_TIME=60000 \
     ghcr.io/engineer-man/piston
 else
   docker start piston_api >/dev/null 2>&1 || true
@@ -74,7 +101,12 @@ else
 fi
 
 log "Fetching the app into ${APP_DIR}"
-if [[ -d "$APP_DIR/.git" ]]; then
+if [[ -f "$APP_DIR/server/package.json" && ! -d "$APP_DIR/.git" ]]; then
+  # Someone copied the tree up by hand (rsync/scp), which is how a private
+  # repo gets here without giving the box a deploy key. Nothing to fetch.
+  echo "Found an existing checkout with no git metadata -- leaving it alone"
+  chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+elif [[ -d "$APP_DIR/.git" ]]; then
   sudo -u "$APP_USER" git -C "$APP_DIR" pull --ff-only
 else
   # useradd already made $APP_DIR, and git refuses to clone into a

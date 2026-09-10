@@ -96,9 +96,33 @@ Binding to `127.0.0.1` keeps it off the public internet. That's essential,
 not tidiness: Piston executes arbitrary code on request with no
 authentication, so anything that can reach it owns the machine.
 
-Install the language runtimes you want through the Piston API, then the
-formatters. That script does `docker exec piston_api`, so it runs on the
-machine holding the Piston container — the same one, here:
+Note the raised timeouts. Piston defaults to a 3-second run limit and 10 for
+compiles, which assume a normal CPU. On a small shared-vCPU instance wall
+clock runs far ahead of CPU time — a Go hello-world measured 133 ms of CPU
+against 5 s of wall clock — so Go and Java get SIGKILLed mid-run and return
+no output at all, which reads like a crash rather than a timeout. If Run
+works for some languages but silently produces nothing for the slower ones,
+this is why.
+
+Install the language runtimes through the Piston API. Note the package
+names don't always match the language: JavaScript installs as `node` and
+C++ as `gcc`.
+
+```bash
+for pkg in "node 18.15.0" "typescript 5.0.3" "python 3.10.0" \
+           "gcc 10.2.0" "go 1.16.2" "java 15.0.2" "rust 1.68.2"; do
+  set -- $pkg
+  curl -s -X POST http://127.0.0.1:2000/api/v2/packages \
+    -H 'Content-Type: application/json' \
+    -d "{\"language\":\"$1\",\"version\":\"$2\"}"
+done
+```
+
+Those versions are pinned in `server/languages.js` and must match, or the
+editor's Run button reports an unknown runtime.
+
+Then the formatters. That script does `docker exec piston_api`, so it runs
+on the machine holding the Piston container — the same one, here:
 
 ```bash
 cd /opt/codemesh/server && npm run setup-formatters
