@@ -3120,3 +3120,100 @@ select:focus {
   flex-shrink: 1;
   min-width: 260px;
 }
+
+/* Legal pages (privacy policy, terms) */
+
+.landing-footer-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.legal-page {
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+}
+
+/* Narrower than the app's other pages on purpose: this is the only place
+   with long-form prose, and full-width lines are unreadable. */
+.legal-card {
+  width: 100%;
+  max-width: 46rem;
+  padding: 2.25rem 2.5rem 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary) top / 100% 3px no-repeat, var(--bg);
+  box-shadow: var(--shadow-md);
+}
+
+.legal-title {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.legal-updated {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+
+.legal-lede {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-h);
+  padding-bottom: 1.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-card h2 {
+  font-size: 1.05rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.legal-card p,
+.legal-card li {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.legal-card p + p,
+.legal-card ul + p {
+  margin-top: 0.7rem;
+}
+
+.legal-card ul {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.legal-card strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.legal-card a {
+  color: var(--accent-hover);
+}
+
+.legal-contact {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.legal-card > .btn {
+  margin-top: 1.75rem;
+}
+
+@media (max-width: 700px) {
+  .legal-card {
+    padding: 1.5rem 1.25rem;
+  }
+}

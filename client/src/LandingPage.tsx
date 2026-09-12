@@ -2,6 +2,7 @@ import { PlayIcon } from './icons'
 
 interface LandingPageProps {
   onGetStarted: () => void
+  onOpenLegal: (kind: 'privacy' | 'terms') => void
 }
 
 // Rendered as one <div> per line (rather than raw '\n' text nodes mixed with
@@ -86,7 +87,7 @@ const FAQS = [
   },
 ]
 
-function LandingPage({ onGetStarted }: LandingPageProps) {
+function LandingPage({ onGetStarted, onOpenLegal }: LandingPageProps) {
   return (
     <div className="landing">
       <section className="landing-hero">
@@ -261,6 +262,14 @@ function LandingPage({ onGetStarted }: LandingPageProps) {
           <span className="app-brand-mark">◆</span>CodeMesh
         </span>
         <span>Real-time collaborative coding.</span>
+        <nav className="landing-footer-links">
+          <button type="button" className="link-button" onClick={() => onOpenLegal('privacy')}>
+            Privacy
+          </button>
+          <button type="button" className="link-button" onClick={() => onOpenLegal('terms')}>
+            Terms
+          </button>
+        </nav>
       </footer>
     </div>
   )

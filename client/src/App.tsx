@@ -5,6 +5,7 @@ import JoinInvite from './JoinInvite'
 import LandingPage from './LandingPage'
 import ResetPasswordPage from './ResetPasswordPage'
 import LoginPage from './LoginPage'
+import LegalPage from './LegalPage'
 import PublicGallery from './PublicGallery'
 import { loadDisplayName, loadUserColor, saveDisplayName } from './identity'
 import { useTheme } from './useTheme'
@@ -22,6 +23,8 @@ type Route =
   | { type: 'gallery' }
   | { type: 'login' }
   | { type: 'signup' }
+  | { type: 'privacy' }
+  | { type: 'terms' }
   | { type: 'project'; id: string }
 
 function parseRoute(pathname: string, search: string): Route {
@@ -33,6 +36,8 @@ function parseRoute(pathname: string, search: string): Route {
   if (trimmed === 'explore') return { type: 'gallery' }
   if (trimmed === 'login') return { type: 'login' }
   if (trimmed === 'signup') return { type: 'signup' }
+  if (trimmed === 'privacy') return { type: 'privacy' }
+  if (trimmed === 'terms') return { type: 'terms' }
   if (trimmed.startsWith('join/'))
     return { type: 'join', inviteToken: trimmed.slice('join/'.length) }
   return { type: 'project', id: trimmed }
@@ -94,6 +99,10 @@ function App() {
   const goToLogin = useCallback(() => navigate('/login'), [navigate])
 
   const goToSignup = useCallback(() => navigate('/signup'), [navigate])
+  const goToLegal = useCallback(
+    (kind: 'privacy' | 'terms') => navigate(`/${kind}`),
+    [navigate],
+  )
 
   return (
     <div className="app-shell">
@@ -128,7 +137,9 @@ function App() {
       </header>
 
       <main className="app-main">
-        {route.type === 'reset-password' ? (
+        {route.type === 'privacy' || route.type === 'terms' ? (
+          <LegalPage kind={route.type} onBack={goToDashboard} />
+        ) : route.type === 'reset-password' ? (
           <ResetPasswordPage token={route.token} onReset={accountResetPassword} onDone={goToDashboard} />
         ) : route.type === 'login' || route.type === 'signup' ? (
           accountUsername && accountToken ? (
@@ -153,7 +164,7 @@ function App() {
               onOpenProject={openProject}
             />
           ) : (
-            <LandingPage onGetStarted={goToSignup} />
+            <LandingPage onGetStarted={goToSignup} onOpenLegal={goToLegal} />
           )
         ) : route.type === 'join' ? (
           <JoinInvite inviteToken={route.inviteToken} token={accountToken} onJoined={openProject} />
