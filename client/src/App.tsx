@@ -16,6 +16,23 @@ import './App.css'
 
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' } as const
 
+const SITE_NAME = 'CodeMesh'
+const TAGLINE = 'Real-time collaborative code editor'
+
+// index.html carries the title crawlers and link scrapers read; this keeps
+// the browser tab and back-history meaningful once the app is routing on
+// the client, where that static title would otherwise stick on every page.
+const ROUTE_TITLES: Record<string, string> = {
+  gallery: 'Explore',
+  login: 'Sign in',
+  signup: 'Sign up',
+  privacy: 'Privacy Policy',
+  terms: 'Terms & Conditions',
+  'reset-password': 'Reset password',
+  join: 'Join project',
+  project: 'Project',
+}
+
 type Route =
   | { type: 'dashboard' }
   | { type: 'join'; inviteToken: string }
@@ -74,6 +91,15 @@ function App() {
     setDisplayName(name)
     saveDisplayName(name)
   }
+
+  useEffect(() => {
+    const section = ROUTE_TITLES[route.type]
+    document.title = section
+      ? `${section} · ${SITE_NAME}`
+      : accountUsername
+        ? `Dashboard · ${SITE_NAME}`
+        : `${SITE_NAME} — ${TAGLINE}`
+  }, [route.type, accountUsername])
 
   useEffect(() => {
     const onPopState = () => setRoute(parseRoute(window.location.pathname, window.location.search))

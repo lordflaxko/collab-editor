@@ -4,13 +4,51 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>CodeMesh — Real-time collaborative code editor</title>
+    <meta
+      name="description"
+      content="Code together in one shared editor: live cursors, chat, inline comments, sandboxed execution in 7 languages, step-through debugging, and built-in Git."
+    />
+    <link rel="canonical" href="https://codemesh-editor.netlify.app/" />
+
+    <!-- Open Graph: what Slack, Discord, LinkedIn and iMessage read when
+         someone pastes the link. Without these a shared link renders as a
+         bare URL with no title, blurb or image. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CodeMesh" />
+    <meta property="og:url" content="https://codemesh-editor.netlify.app/" />
+    <meta property="og:title" content="CodeMesh — Real-time collaborative code editor" />
+    <meta
+      property="og:description"
+      content="Code together in one shared editor: live cursors, chat, inline comments, sandboxed execution in 7 languages, step-through debugging, and built-in Git."
+    />
+    <!-- Must be absolute: scrapers don't resolve relative paths. 1200x630 is
+         the ratio the preview cards crop to. -->
+    <meta property="og:image" content="https://codemesh-editor.netlify.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The CodeMesh editor with two people editing one file in real time" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CodeMesh — Real-time collaborative code editor" />
+    <meta
+      name="twitter:description"
+      content="Code together in one shared editor: live cursors, chat, inline comments, sandboxed execution in 7 languages, step-through debugging, and built-in Git."
+    />
+    <meta name="twitter:image" content="https://codemesh-editor.netlify.app/og-image.png" />
+
+    <!-- Tints the browser chrome on mobile. Matches the dark canvas so the
+         status bar doesn't sit as a bright band above the page. -->
+    <meta name="theme-color" content="#0f0e0c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f5ef" media="(prefers-color-scheme: light)" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <title>CodeMesh</title>
   </head>
   <body>
     <div id="root"></div>
