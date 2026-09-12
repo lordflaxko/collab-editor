@@ -1,6 +1,6 @@
 # CodeMesh
 
-**[▶ Try it live — codemesh-collab-code-editor.ansugans6.workers.dev](https://codemesh-collab-code-editor.ansugans6.workers.dev)**
+**[▶ Try it live — codemesh.pages.dev](https://codemesh.pages.dev)**
 
 A real-time collaborative code editor. Several people open the same project and edit it at once — live cursors, presence, chat, and inline comment threads — with a full toolchain in the same tab: sandboxed execution with an interactive terminal, real step-through debugging, Git with pull requests, a Postgres query panel, an HTTP API tester, one-click deploys, and an AI assistant.
 

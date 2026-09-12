@@ -219,20 +219,43 @@ VITE_SERVER_URL=https://api.example.com npm run build
 
 That writes `client/dist` — plain static files, deployable anywhere.
 
-**Netlify is the easiest option, and `netlify.toml` in the repo root already
-configures it.** Connect the repository at netlify.com, then set
-`VITE_SERVER_URL` under Site settings → Environment variables to your
-server's URL and trigger a deploy. You get HTTPS and a `*.netlify.app`
-hostname with no DNS work, and every push redeploys.
+**The live instance uses Cloudflare Pages**, deployed straight from the
+command line:
 
-The config does one non-obvious thing worth keeping: it rewrites all paths
-to `index.html`. The client routes on real paths, so without that rewrite
-any direct link, refresh, or shared project URL returns 404 — only `/`
-would work.
+```bash
+npx wrangler pages project create codemesh --production-branch master --force
+npx wrangler pages deploy client/dist --project-name codemesh
+```
 
-Cloudflare Pages and Vercel work the same way (build `npm run build`, output
-`dist`, plus an equivalent SPA fallback). Or serve `dist` from the VM with
-nginx if you'd rather keep everything in one place.
+That `--force` is load-bearing and worth explaining. Cloudflare has folded
+Pages into Workers, so without it `pages project create` silently produces a
+**Worker** instead, hosted at `<project>.<account-subdomain>.workers.dev` —
+which puts your account name in the URL. `--force` opts into Pages proper and
+its shorter `<project>.pages.dev`. It's needed only once, when the project is
+created.
+
+The two products also disagree about SPA routing, which is easy to lose an
+afternoon to:
+
+| | SPA fallback |
+| --- | --- |
+| Pages, Netlify | `_redirects` containing `/*  /index.html  200` |
+| Workers assets | `not_found_handling: "single-page-application"` in `wrangler.jsonc` |
+
+They are not interchangeable. Workers applies a stricter validator and
+**rejects** that `_redirects` rule outright as an infinite loop — `/index.html`
+matches `/*` again — failing the deploy after an otherwise clean build. Both
+files are kept in the repo because each is correct for its own target.
+
+Whatever the host, the SPA fallback is mandatory: the client routes on real
+paths, so without it every direct link, refresh and shared project URL
+returns 404 and only `/` loads.
+
+Netlify works the same way and `netlify.toml` still configures it. Its free
+tier now meters builds as credits, and exhausting them pauses production
+deploys until the billing cycle resets — worth knowing before relying on it.
+You can also just serve `dist` from the VM with nginx and keep everything on
+one box.
 
 Make sure `CLIENT_URL` in the server's `.env` matches wherever the client
 ended up, so password-reset links point at the right place.
