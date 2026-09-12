@@ -1,0 +1,4 @@
+
+# Wrangler writes account id and account name (which embeds the
+# account email) into this cache during deploys.
+.wrangler/
