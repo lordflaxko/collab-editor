@@ -1,4 +1,4 @@
-const REPO_ISSUES = 'https://github.com/lordflaxko/collab-editor/issues'
+const REPO_ISSUES = 'https://github.com/lordflaxko/CodeMesh-Collab-Code-Editor/issues'
 const LAST_UPDATED = 'September 2026'
 
 interface LegalPageProps {

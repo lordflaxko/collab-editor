@@ -63,8 +63,8 @@ host's Docker daemon, which is root-equivalent on that box.
 `deploy/setup.sh` performs every step in section 2 and is safe to re-run:
 
 ```bash
-git clone https://github.com/lordflaxko/collab-editor.git
-sudo bash collab-editor/deploy/setup.sh api.example.com
+git clone https://github.com/lordflaxko/CodeMesh-Collab-Code-Editor.git
+sudo bash CodeMesh-Collab-Code-Editor/deploy/setup.sh api.example.com
 ```
 
 Then skip to [Configure](#3-configure). To understand or adjust what it does,
@@ -131,7 +131,7 @@ cd /opt/codemesh/server && npm run setup-formatters
 **The app**
 
 ```bash
-sudo -u codemesh git clone https://github.com/lordflaxko/collab-editor.git /opt/codemesh
+sudo -u codemesh git clone https://github.com/lordflaxko/CodeMesh-Collab-Code-Editor.git /opt/codemesh
 cd /opt/codemesh/server && sudo -u codemesh npm ci --omit=dev
 sudo -u codemesh cp .env.example .env
 ```

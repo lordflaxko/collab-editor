@@ -240,8 +240,8 @@ On a fresh Ubuntu VM, one command does the whole server build — packages,
 Node, a service user, Piston, systemd, nginx and the firewall:
 
 ```bash
-git clone https://github.com/lordflaxko/collab-editor.git
-sudo bash collab-editor/deploy/setup.sh your-hostname.example.com
+git clone https://github.com/lordflaxko/CodeMesh-Collab-Code-Editor.git
+sudo bash CodeMesh-Collab-Code-Editor/deploy/setup.sh your-hostname.example.com
 ```
 
 It stops short of certbot (which needs live DNS) and `.env` (which needs

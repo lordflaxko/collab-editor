@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/lordflaxko/collab-editor.git}"
+REPO_URL="${REPO_URL:-https://github.com/lordflaxko/CodeMesh-Collab-Code-Editor.git}"
 APP_DIR=/opt/codemesh
 APP_USER=codemesh
 # The server needs 18+; Ubuntu has shipped at least that since 24.04.
