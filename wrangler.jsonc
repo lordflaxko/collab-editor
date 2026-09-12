@@ -1,0 +1,22 @@
+{
+  // Cloudflare now serves static sites through Workers rather than Pages, so
+  // `wrangler deploy` needs to be told this project is just a built directory
+  // with no server-side code. Without this file the deploy fails outright --
+  // wrangler has no entry point and no idea what to upload.
+  "name": "codemesh",
+  "compatibility_date": "2026-09-12",
+
+  "assets": {
+    // Relative to the repository root, which is where the deploy command runs.
+    // The build command cd's into client/ in its own subshell, so that
+    // directory change doesn't persist to this step.
+    "directory": "./client/dist",
+
+    // The client routes on real paths (/login, /explore, /<projectId>) read
+    // from window.location.pathname, so an unmatched path has to return
+    // index.html with a 200 rather than a 404 -- otherwise every direct link,
+    // refresh and shared project URL breaks and only "/" loads. This is the
+    // Workers equivalent of the _redirects rule.
+    "not_found_handling": "single-page-application"
+  }
+}
