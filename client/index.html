@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- iOS ignores SVG favicons and wants a raster icon for the home screen. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>CodeMesh — Real-time collaborative code editor</title>
@@ -25,10 +27,10 @@
     />
     <!-- Must be absolute: scrapers don't resolve relative paths. 1200x630 is
          the ratio the preview cards crop to. -->
-    <meta property="og:image" content="https://codemesh-editor.netlify.app/og-image.png" />
+    <meta property="og:image" content="https://codemesh-editor.netlify.app/og-image-v2.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="The CodeMesh editor with two people editing one file in real time" />
+    <meta property="og:image:alt" content="CodeMesh — code together, in real time. Supports JavaScript, TypeScript, Python, Java, C++, Rust and Go." />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="CodeMesh — Real-time collaborative code editor" />
@@ -36,7 +38,7 @@
       name="twitter:description"
       content="Code together in one shared editor: live cursors, chat, inline comments, sandboxed execution in 7 languages, step-through debugging, and built-in Git."
     />
-    <meta name="twitter:image" content="https://codemesh-editor.netlify.app/og-image.png" />
+    <meta name="twitter:image" content="https://codemesh-editor.netlify.app/og-image-v2.png" />
 
     <!-- Tints the browser chrome on mobile. Matches the dark canvas so the
          status bar doesn't sit as a bright band above the page. -->
