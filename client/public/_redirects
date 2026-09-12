@@ -1,0 +1,12 @@
+# SPA fallback for Cloudflare Pages and Netlify.
+#
+# The client routes on real paths (/login, /explore, /<projectId>) read from
+# window.location.pathname, so a static host that looks for a file at that
+# path 404s on every direct link, refresh and shared project URL -- only "/"
+# would load.
+#
+# Note this rule is NOT valid on Cloudflare Workers static assets, which
+# applies a stricter validator and rejects it as an infinite loop because
+# /index.html matches /* again. Workers uses not_found_handling in
+# wrangler.jsonc instead. Pages and Netlify both accept this form.
+/*    /index.html   200
