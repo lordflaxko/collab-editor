@@ -3,16 +3,43 @@ const path = require('path')
 const crypto = require('crypto')
 
 const STORE_PATH = path.join(__dirname, 'users.json')
+const SESSIONS_PATH = path.join(__dirname, 'sessions.json')
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const RESET_TTL_MS = 30 * 60 * 1000 // 30 minutes
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,20}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// Sessions are kept in memory only: restarting the server logs everyone out.
-// That's an acceptable trade-off for now -- there's no security reason a
-// session needs to outlive the process, and it avoids having to persist and
-// garbage-collect a session store on disk.
-const sessions = new Map()
+// Sessions live on disk so a restart doesn't sign everyone out. They were
+// in-memory originally, which was fine while the server only ever restarted
+// on a developer's machine -- but deploying made every update log out every
+// signed-in user, since deploys restart the process.
+//
+// Garbage collection is free here: each session already carries an expiry,
+// so expired ones are simply dropped when the file is read back.
+function loadSessions() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(SESSIONS_PATH, 'utf8'))
+    const now = Date.now()
+    return new Map(
+      Object.entries(raw).filter(([, session]) => session && session.expiresAt > now),
+    )
+  } catch {
+    return new Map()
+  }
+}
+
+const sessions = loadSessions()
+
+// Called only when a session is created or destroyed -- logins and logouts,
+// not requests -- so rewriting the whole file each time costs nothing.
+function saveSessions() {
+  try {
+    fs.writeFileSync(SESSIONS_PATH, JSON.stringify(Object.fromEntries(sessions), null, 2))
+  } catch {
+    // A failed write shouldn't break signing in: the session still works for
+    // the life of this process, it just won't survive a restart.
+  }
+}
 
 // Reset tokens are similarly in-memory and short-lived -- a reset link is
 // only ever meant to be useful for a few minutes after it's requested, so
@@ -47,6 +74,7 @@ function verifyPassword(password, stored) {
 function createSession(username) {
   const token = crypto.randomBytes(32).toString('hex')
   sessions.set(token, { username, expiresAt: Date.now() + SESSION_TTL_MS })
+  saveSessions()
   return { token, username }
 }
 
@@ -99,6 +127,7 @@ function getSessionUser(token) {
 
 function destroySession(token) {
   sessions.delete(token)
+  saveSessions()
 }
 
 function userExists(username) {

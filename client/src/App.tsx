@@ -104,6 +104,12 @@ function App() {
     [navigate],
   )
 
+  // The landing page carries its own footer, and the workspace is a
+  // full-height IDE where one would be out of place -- everywhere else had
+  // none, which left the legal pages unreachable once signed in.
+  const showingLanding = route.type === 'dashboard' && !accountChecking && !accountUsername
+  const showFooter = route.type !== 'project' && !showingLanding
+
   return (
     <div className="app-shell">
       <header className="app-nav">
@@ -180,6 +186,17 @@ function App() {
           />
         )}
       </main>
+
+      {showFooter && (
+        <footer className="app-footer">
+          <button type="button" className="link-button" onClick={() => goToLegal('privacy')}>
+            Privacy
+          </button>
+          <button type="button" className="link-button" onClick={() => goToLegal('terms')}>
+            Terms
+          </button>
+        </footer>
+      )}
     </div>
   )
 }

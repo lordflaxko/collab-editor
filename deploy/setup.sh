@@ -147,6 +147,14 @@ map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
+
+# Same as nginx's "combined" format but logging $uri instead of $request, so
+# the query string never reaches disk. The collaboration WebSocket passes its
+# session token as a query parameter, and the default format wrote that token
+# -- valid for 30 days -- into the access log on every single connection.
+log_format codemesh '$remote_addr - $remote_user [$time_local] '
+                    '"$request_method $uri $server_protocol" '
+                    '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
 EOF
 
 sed "s/api\.example\.com/${SERVER_NAME}/g" \

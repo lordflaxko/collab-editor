@@ -3217,3 +3217,13 @@ select:focus {
     padding: 1.5rem 1.25rem;
   }
 }
+
+/* Legal links for every page that doesn't already have a footer. The
+   landing page has its own, and the workspace deliberately has none. */
+.app-footer {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0 1.5rem 2rem;
+  font-size: 0.8rem;
+}
