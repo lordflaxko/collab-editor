@@ -1,9 +1,0 @@
-# SPA fallback. The client routes on real paths (/login, /explore,
-# /<projectId>), reading window.location.pathname rather than a hash, so a
-# static host that looks for a file at that path returns 404 on every direct
-# link, refresh, or shared project URL -- only "/" would work.
-#
-# Lives in public/ so Vite copies it into dist/, which is the directory
-# Cloudflare Pages actually publishes. netlify.toml expresses the same rule
-# for Netlify; Cloudflare doesn't read that file.
-/*    /index.html   200

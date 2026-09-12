@@ -3,7 +3,9 @@
   // `wrangler deploy` needs to be told this project is just a built directory
   // with no server-side code. Without this file the deploy fails outright --
   // wrangler has no entry point and no idea what to upload.
-  "name": "codemesh",
+  // Must match the Worker name Cloudflare derives from the repository, or
+  // the CI build warns about the mismatch and overrides it anyway.
+  "name": "codemesh-collab-code-editor",
   "compatibility_date": "2026-09-12",
 
   "assets": {
@@ -15,8 +17,12 @@
     // The client routes on real paths (/login, /explore, /<projectId>) read
     // from window.location.pathname, so an unmatched path has to return
     // index.html with a 200 rather than a 404 -- otherwise every direct link,
-    // refresh and shared project URL breaks and only "/" loads. This is the
-    // Workers equivalent of the _redirects rule.
+    // refresh and shared project URL breaks and only "/" loads.
+    //
+    // This replaces a _redirects file rather than complementing one. Workers
+    // does parse _redirects, and it rejects the usual `/* /index.html 200`
+    // SPA rule outright as an infinite loop, since /index.html matches /*
+    // again -- which failed the deploy until the file was removed.
     "not_found_handling": "single-page-application"
   }
 }
